@@ -78,6 +78,7 @@ gnome_enabled_extensions:
   - system-monitor@gnome-shell-extensions.gcampax.github.com
   - appindicatorsupport@rgcjonas.gmail.com
   - twingate-panel@mtharpe
+  - quiet-screenshots@mtharpe
 
 # Dev checkout to symlink as the extension; if it doesn't exist, main is downloaded instead
 twingate_panel_checkout: "{{ local_home }}/src/github/mtharpe/twingate-panel"

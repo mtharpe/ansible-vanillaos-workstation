@@ -1,0 +1,7 @@
+{
+  "uuid": "quiet-screenshots@mtharpe",
+  "name": "Quiet Screenshots",
+  "description": "Don't show GNOME's \"Screenshot captured\" notifications. Screenshots are still saved and copied to the clipboard.",
+  "shell-version": ["50"],
+  "version": 1
+}
