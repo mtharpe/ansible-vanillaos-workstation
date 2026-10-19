@@ -1,0 +1,37 @@
+#!/bin/bash
+# Launch Zed in the work or personal apx subsystem (so its Claude agent
+# uses that profile's claude CLI and login).
+#   zed-launcher                       -> ask which profile, then launch
+#   zed-launcher work|personal [path]  -> launch that profile directly
+#   zed-launcher <path|zed://...>      -> open in the last profile launched
+set -euo pipefail
+
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
+state_file="$state_dir/zed-profile"
+last=$(cat "$state_file" 2>/dev/null || echo work)
+
+profile=""
+case "${1:-}" in
+    work|personal) profile=$1; shift ;;
+    "") ;;
+    *) profile=$last ;;
+esac
+args=("$@")
+
+if [[ -z "$profile" ]]; then
+    work_default=FALSE personal_default=FALSE
+    [[ "$last" == personal ]] && personal_default=TRUE || work_default=TRUE
+    profile=$(zenity --list --radiolist --title="Zed" \
+        --text="Which profile do you want to use?" \
+        --column="" --column="Profile" --column="Name" --hide-column=3 \
+        --print-column=3 --width=320 --height=220 \
+        "$work_default" "Work" work \
+        "$personal_default" "Personal" personal) || exit 0
+    [[ -n "$profile" ]] || exit 0
+fi
+
+mkdir -p "$state_dir"
+echo "$profile" > "$state_file"
+
+exec /usr/share/apx/distrobox/distrobox-enter -n "apx-claude-$profile" -- \
+    bash -lc 'exec "$HOME/.local/bin/zed" "$@"' zed "${args[@]}"

@@ -1,0 +1,11 @@
+// Zed keymap — see https://zed.dev/docs/key-bindings
+[
+  {
+    // New thread in the Agent Panel always starts Claude Agent (claude-acp),
+    // not Zed's built-in agent.
+    "context": "AgentPanel",
+    "bindings": {
+      "ctrl-n": ["agent::NewExternalAgentThread", { "agent": { "custom": { "name": "claude-acp" } } }]
+    }
+  }
+]

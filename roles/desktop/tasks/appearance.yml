@@ -1,0 +1,22 @@
+---
+- name: Create Nerd Font directories
+  ansible.builtin.file:
+    path: "{{ local_home }}/.local/share/fonts/NerdFonts/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ nerd_fonts }}"
+
+- name: Install Nerd Fonts
+  ansible.builtin.unarchive:
+    src: https://github.com/ryanoasis/nerd-fonts/releases/download/{{ nerd_fonts_version }}/{{ item }}.tar.xz
+    dest: "{{ local_home }}/.local/share/fonts/NerdFonts/{{ item }}"
+    remote_src: true
+    creates: "{{ local_home }}/.local/share/fonts/NerdFonts/{{ item }}/LICENSE.txt"
+  loop: "{{ nerd_fonts }}"
+  notify: Rebuild font cache
+
+# Hatter icons (github.com/Mibea/Hatter); kept current by update-hatter-icons.timer
+- name: Install the Hatter icon theme
+  ansible.builtin.command: "{{ local_home }}/.local/bin/update-hatter-icons"
+  args:
+    creates: "{{ local_home }}/.local/share/icons/Hatter-Blue/index.theme"

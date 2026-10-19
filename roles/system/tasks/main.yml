@@ -1,0 +1,9 @@
+---
+- name: Custom CA
+  ansible.builtin.import_tasks: ca.yml
+
+- name: Wake from sleep on dock connect
+  ansible.builtin.import_tasks: dock_wake.yml
+
+- name: Twingate client
+  ansible.builtin.import_tasks: twingate.yml

@@ -1,0 +1,59 @@
+#!/bin/bash
+# Root side of the `twingate` launcher in ~/.bash_aliases, run through pkexec. The host has no
+# sudo, which the Twingate CLI uses for these commands, so they run here as root instead.
+#   twingate-switch connect [account] start the service, switch to [account] if given, connect
+#   twingate-switch off                disconnect
+#   twingate-switch add                first-time setup, or add another account
+# A polkit rule lets the desktop user run this without a password; only these actions exist.
+set -euo pipefail
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+
+case ${1-} in
+    connect)
+        # Account id as `twingate account switch` takes it: email, email:network or account ID.
+        # No account = connect whichever is active (the GNOME panel's toggle does this).
+        [[ -z ${2-} || $2 =~ ^[A-Za-z0-9@._:+-]+$ ]] || { echo "twingate-switch: bad account '$2'" >&2; exit 2; }
+        systemctl start twingate.service
+        # Accounts are only listed (by email) after their first sign-in, so if the switch fails,
+        # connect the current network to bring up its sign-in page instead. `account switch` asks
+        # "Are you sure? [y/N]" and reads no from an empty stdin (the panel), so answer it.
+        if [[ ${2-} ]] && ! out=$(printf 'y\ny\ny\n' | twingate-classic account switch -d "$2" 2>&1); then
+            echo "twingate-switch: account switch $2 failed:"$'\n'"$out" >&2
+            # The daemon connects the default profile; name its network (network.conf is only the
+            # default network for new accounts)
+            profiles=/var/lib/twingate/profiles
+            network=$(sed -n 's/.*"network_slug":"\([^"]*\)".*/\1/p' "$profiles/$(<"$profiles/default")/info.json" 2>/dev/null)
+            echo "Account '$2' isn't signed in yet; connecting ${network:-the current network} so you can sign in"
+        fi
+        # In background daemon mode the daemon only connects when the service starts; after a
+        # disconnect `twingate start` just sees the service running and waits, so restart it
+        [[ $(twingate-classic status 2>/dev/null | tail -1) == online ]] || systemctl restart twingate.service
+        twingate-classic start
+        ;;
+    off)
+        # `twingate stop` also runs `systemctl --user stop twingate-desktop-notifier`, which fails
+        # as root (no user bus) and makes it exit 1 before stopping anything. Stop the daemon
+        # directly; connect starts it again, and the notifier keeps running for sign-ins.
+        systemctl stop twingate.service
+        ;;
+    add)
+        systemctl start twingate.service
+        # The package ships network.conf as a blank line, so check for an actual network name
+        if grep -q '[^[:space:]]' /etc/twingate/network.conf 2>/dev/null; then
+            twingate-classic account add || true
+        else
+            twingate-classic setup || true
+        fi
+        # The CLI's own "restart Twingate now?" fails here (No such file or directory), so restart
+        # the service ourselves; the daemon then connects the new account and opens its sign-in
+        if [[ $(twingate-classic status 2>/dev/null | tail -1) != online ]]; then
+            echo "Restarting Twingate; sign in to the new account in your browser"
+            systemctl restart twingate.service
+            twingate-classic start
+        fi
+        ;;
+    *)
+        echo "usage: twingate-switch connect [account] | off | add" >&2
+        exit 2
+        ;;
+esac

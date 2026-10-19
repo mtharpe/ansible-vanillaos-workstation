@@ -1,0 +1,30 @@
+---
+# The host has no cron; scheduled jobs are systemd user timers.
+- name: Install user units
+  ansible.builtin.copy:
+    src: systemd/{{ item }}
+    dest: "{{ local_home }}/.config/systemd/user/{{ item }}"
+    mode: "0644"
+  loop:
+    - power-profile-auto.service
+    - update-hatter-icons.service
+    - update-hatter-icons.timer
+
+# The Twingate notifier (unit installed by the system role) opens the sign-in page via
+# $BROWSER; point it at gio since the host has no xdg-open
+- name: Point the Twingate notifier at open-url
+  ansible.builtin.copy:
+    src: systemd/twingate-notifier-browser.conf
+    dest: "{{ local_home }}/.config/systemd/user/twingate-desktop-notifier.service.d/browser.conf"
+    mode: "0644"
+
+- name: Enable user services
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    scope: user
+    enabled: true
+    state: started
+    daemon_reload: true
+  loop:
+    - power-profile-auto.service
+    - update-hatter-icons.timer

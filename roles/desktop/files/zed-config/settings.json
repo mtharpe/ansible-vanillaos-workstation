@@ -1,0 +1,73 @@
+// Zed settings
+//
+// For information on how to configure Zed, see the Zed
+// documentation: https://zed.dev/docs/configuring-zed
+//
+// To see all of Zed's default settings without changing your
+// custom settings, run `zed: open default settings` from the
+// command palette (cmd-shift-p / ctrl-shift-p)
+{
+  "telemetry": {
+    "diagnostics": false,
+    "metrics": false,
+    "anthropic_retention": false
+  },
+  "session": {
+    "trust_all_worktrees": true
+  },
+
+  // --- AI: Claude Code only ---
+  // Don't use "disable_ai": it also removes the Agent Panel that Claude Code runs in.
+  "agent_servers": {
+    "claude-acp": {
+      "default_config_options": {
+        "mode": "auto"
+      },
+      "type": "registry"
+    }
+  },
+  // Zed's own inline completions (Zeta / Copilot) off everywhere
+  "edit_predictions": {
+    "provider": "none"
+  },
+  "show_edit_predictions": false,
+  "title_bar": {
+    "show_menus": true,
+    "show_sign_in": false,
+    "show_onboarding_banner": false,
+    "show_user_picture": false
+  },
+
+  // --- VS Code look ---
+  "base_keymap": "VSCode",
+  "auto_install_extensions": {
+    "vscode-dark-modern": true,
+    "vscode-light-plus": true,
+    "vscode-icons": true
+  },
+  "theme": {
+    "mode": "system",
+    "light": "VSCode Light+",
+    "dark": "VSCode Dark Modern"
+  },
+  "icon_theme": {
+    "mode": "system",
+    "light": "VSCode Icons for Zed (Light)",
+    "dark": "VSCode Icons for Zed (Dark)"
+  },
+  "ui_font_size": 16,
+  "buffer_font_size": 15,
+  "project_panel": { "dock": "left", "starts_open": true },
+  "outline_panel": { "dock": "left" },
+  "git_panel": { "dock": "left" },
+  "agent": { "dock": "right" },
+  "terminal": { "dock": "bottom" },
+  "bottom_dock_layout": "contained",
+  "tabs": {
+    "file_icons": true,
+    "git_status": true,
+    "show_diagnostics": "errors"
+  },
+  "minimap": { "show": "never" },
+  "toolbar": { "breadcrumbs": true }
+}

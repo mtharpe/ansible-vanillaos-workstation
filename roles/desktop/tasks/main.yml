@@ -1,0 +1,18 @@
+---
+- name: Launchers, URL handlers and helper scripts
+  ansible.builtin.import_tasks: launchers.yml
+
+- name: Fonts and icon theme
+  ansible.builtin.import_tasks: appearance.yml
+
+- name: User services
+  ansible.builtin.import_tasks: services.yml
+
+- name: Flatpak apps and overrides
+  ansible.builtin.import_tasks: flatpak.yml
+
+- name: GNOME extensions and settings
+  ansible.builtin.import_tasks: gnome.yml
+
+- name: Twingate launcher config
+  ansible.builtin.import_tasks: twingate.yml

@@ -1,0 +1,7 @@
+# Wake from sleep when a dock is connected with the lid closed.
+
+# Thunderbolt/USB4 docks: usb4_port* have no uevents of their own, so set them from the host router.
+ACTION=="add", SUBSYSTEM=="thunderbolt", ENV{USB4_TYPE}=="host", RUN+="/bin/sh -c 'for f in /sys%p/usb4_port*/power/wakeup; do echo enabled > $$f; done'"
+
+# USB-C (non-Thunderbolt) docks: let the xHCI root hubs arm wake-on-connect.
+ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{bDeviceClass}=="09", ATTR{devpath}=="0", TEST=="power/wakeup", ATTR{power/wakeup}="enabled"

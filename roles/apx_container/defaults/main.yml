@@ -1,0 +1,3 @@
+---
+# This subsystem's own home (apx gives each one a custom home under ~/.apx-homes)
+apx_home: "{{ local_home }}/.apx-homes/{{ inventory_hostname | regex_replace('^apx-', '') }}"

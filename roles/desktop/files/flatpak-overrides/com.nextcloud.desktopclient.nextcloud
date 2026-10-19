@@ -1,0 +1,7 @@
+[Context]
+unset-environment=SSL_CERT_FILE;
+sockets=x11;
+
+[Environment]
+SSL_CERT_FILE=
+QT_QPA_PLATFORM=xcb

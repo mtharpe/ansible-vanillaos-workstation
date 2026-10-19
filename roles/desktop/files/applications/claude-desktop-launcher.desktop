@@ -1,0 +1,21 @@
+[Desktop Entry]
+Name=Claude
+Comment=Claude Desktop (choose Work or Personal profile)
+GenericName=AI Assistant
+Keywords=AI;Chat;Assistant;Claude;LLM;
+Exec=/home/tharpem/.local/bin/claude-desktop-launcher %U
+Icon=claude-desktop
+Type=Application
+StartupNotify=false
+StartupWMClass=com.anthropic.Claude
+Categories=Utility;
+MimeType=x-scheme-handler/claude;
+Actions=Work;Personal;
+
+[Desktop Action Work]
+Name=Open Work
+Exec=/home/tharpem/.local/bin/claude-desktop-launcher work
+
+[Desktop Action Personal]
+Name=Open Personal
+Exec=/home/tharpem/.local/bin/claude-desktop-launcher personal

@@ -1,0 +1,36 @@
+---
+# Create the apx subsystems (Ubuntu, each with its own home) that containers.yml configures.
+- name: Create subsystem homes
+  ansible.builtin.file:
+    path: "{{ item.home }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ apx_subsystems }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Check which subsystems exist
+  ansible.builtin.command: podman container exists apx-{{ item.name }}
+  loop: "{{ apx_subsystems }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: apx_host_exists
+  changed_when: false
+  check_mode: false
+  failed_when: apx_host_exists.rc not in [0, 1]
+
+- name: Create missing subsystems
+  ansible.builtin.command: apx subsystems new -n {{ item.item.name }} -s ubuntu -H {{ item.item.home }}
+  loop: "{{ apx_host_exists.results | selectattr('rc', '==', 1) }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  changed_when: true
+
+# containers.yml reaches them with `podman exec`, which needs them running
+- name: Start subsystems
+  ansible.builtin.command: podman start apx-{{ item.name }}
+  loop: "{{ apx_subsystems }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: apx_host_start
+  changed_when: false

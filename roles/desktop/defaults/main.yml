@@ -1,0 +1,20 @@
+---
+desktop_extensions_dir: "{{ local_home }}/.local/share/gnome-shell/extensions"
+desktop_keybinding_path: /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings
+
+desktop_url_handlers:
+  x-scheme-handler/bitwarden: bitwarden-apx.desktop
+  x-scheme-handler/claude: claude-desktop-launcher.desktop
+
+# dconf values are GVariant text, so strings carry their own quotes
+desktop_dconf:
+  /org/gnome/shell/enabled-extensions: "[{% for e in gnome_enabled_extensions %}'{{ e }}'{{ ', ' if not loop.last }}{% endfor %}]"
+  /org/gnome/desktop/interface/icon-theme: "'Hatter-Blue'"
+  /org/gnome/desktop/interface/accent-color: "'blue'"
+  # Without xwayland-native-scaling: with it, every X11 app showed a double-size pointer
+  /org/gnome/mutter/experimental-features: "['scale-monitor-framebuffer']"
+  /org/gnome/Ptyxis/use-system-font: "false"
+  /org/gnome/Ptyxis/font-name: "'JetBrainsMono Nerd Font Mono 14'"
+  # The Twingate notifier opens sign-in pages; the panel opening them too gave duplicate tabs
+  /org/gnome/shell/extensions/twingate-panel/auth-auto-open: "false"
+  /org/gnome/shell/extensions/twingate-panel/privileged-helper: "'/usr/local/libexec/twingate-switch'"

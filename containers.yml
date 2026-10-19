@@ -1,0 +1,12 @@
+---
+# Inside the apx subsystems (created by apx_host in user.yml). Each has its own $HOME under
+# ~/.apx-homes, which is where per-profile installs (claude CLI, Zed) go.
+- name: Apx subsystem setup
+  hosts: apx
+  gather_facts: false
+
+  vars_files:
+    - vars/vars.yml
+
+  roles:
+    - apx_container

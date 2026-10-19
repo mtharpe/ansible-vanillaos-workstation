@@ -1,0 +1,231 @@
+# ls replacements using eza (static binary in host ~/.local/bin, shared with apx containers)
+__eza=/home/tharpem/.local/bin/eza
+if [[ -x $__eza ]]; then
+    # Icons on, dirs first, hidden files off (add -a to see them)
+    __eza_opts=(--icons=auto --group-directories-first --color=auto)
+    # One entry per line with git status column (eza only shows git status in long view)
+    alias ls="$__eza ${__eza_opts[*]} -l --git"
+    # Same, plus hidden files and a header row
+    alias ll="$__eza ${__eza_opts[*]} -la --git --git-repos-no-status --header"
+    # Directories only, long format with git status
+    alias ld="$__eza ${__eza_opts[*]} -lD --git"
+    unset __eza_opts
+fi
+unset __eza
+
+# ripgrep and bat (static binaries in host ~/.local/bin; absolute paths so apx containers find them)
+__bin=/home/tharpem/.local/bin
+# fzf/zoxide integrations call these tools via PATH; in apx containers $HOME/.local/bin isn't the host's
+[[ ":$PATH:" == *":$__bin:"* ]] || PATH="$PATH:$__bin"
+[[ -x $__bin/rg ]] && alias rg="$__bin/rg"
+# fd: faster find with simpler syntax (fd PATTERN [DIR]); use \find or command find for the real one
+if [[ -x $__bin/fd ]]; then
+    alias fd="$__bin/fd"
+    alias find="$__bin/fd"
+fi
+if [[ -x $__bin/bat ]]; then
+    alias bat="$__bin/bat"
+    # Syntax-highlighted cat; plain output when piped
+    alias cat="$__bin/bat --paging=never"
+fi
+# btop: resource monitor in place of top (\top or command top for the original)
+if [[ -x $__bin/btop ]]; then
+    alias btop="$__bin/btop"
+    alias top="$__bin/btop"
+fi
+# lazygit: terminal UI for git
+if [[ -x $__bin/lazygit ]]; then
+    alias lazygit="$__bin/lazygit"
+    alias lg="$__bin/lazygit"
+    # One config for host and containers (each container has its own $HOME/.config)
+    export LG_CONFIG_FILE=/home/tharpem/.config/lazygit/config.yml
+fi
+# delta: git's diff pager (set in ~/.gitconfig); also a nicer diff for two files (\diff for the original)
+if [[ -x $__bin/delta ]]; then
+    alias delta="$__bin/delta"
+    alias diff="$__bin/delta"
+    # git diff with old and new side by side
+    alias gds="DELTA_FEATURES=+side-by-side git diff"
+fi
+
+# fzf: fuzzy finder, using rg to list files and bat/eza for previews
+if [[ -x $__bin/fzf ]]; then
+    alias fzf="$__bin/fzf"
+    export FZF_DEFAULT_COMMAND="$__bin/rg --files --hidden --glob '!.git'"
+    export FZF_DEFAULT_OPTS="--height 40% --layout reverse --border"
+    export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+    export FZF_CTRL_T_OPTS="--preview '$__bin/bat --color=always --style=numbers --line-range :300 {}'"
+    [[ -x $__bin/fd ]] && export FZF_ALT_C_COMMAND="$__bin/fd --type d --hidden --exclude .git"
+    export FZF_ALT_C_OPTS="--preview '$__bin/eza --tree --level 2 --icons=always --color=always {}'"
+    # Ctrl-R history search, Ctrl-T insert file path, Alt-C cd into directory, ** <Tab> completion
+    if [[ ${BLE_VERSION-} ]]; then
+        # ble.sh's own fzf integration (raw fzf bindings misbehave under ble.sh)
+        ble-import -d integration/fzf-completion
+        ble-import -d integration/fzf-key-bindings
+    else
+        eval "$("$__bin/fzf" --bash)"
+    fi
+    # Fuzzy-pick a file with a bat preview and open it in nvim
+    fe() {
+        local f
+        f=$(/home/tharpem/.local/bin/fzf --preview '/home/tharpem/.local/bin/bat --color=always --style=numbers --line-range :300 {}') &&
+            nvim "$f"
+    }
+    # Fuzzy-pick a file with a bat preview and print its path
+    alias fp="$__bin/fzf --preview '$__bin/bat --color=always --style=numbers --line-range :300 {}'"
+fi
+
+# zoxide: smarter cd that learns frequent dirs (cd foo jumps to best match, cdi picks with fzf)
+if [[ -x $__bin/zoxide ]]; then
+    # One shared database for the host and all apx containers
+    export _ZO_DATA_DIR=/home/tharpem/.local/share/zoxide
+    alias zoxide="$__bin/zoxide"
+    eval "$("$__bin/zoxide" init bash --cmd cd)"
+fi
+unset __bin
+
+# apt: add sudo automatically for commands that change the system (apx containers; the host has no apt).
+# A function named apt keeps apt's own tab completion for subcommands and package names.
+if command -v apt >/dev/null && [[ $EUID -ne 0 ]]; then
+    apt() {
+        case "${1-}" in
+            ""|search|show|list|policy|depends|rdepends|showsrc|changelog|help|-*) command apt "$@" ;;
+            *) sudo apt "$@" ;;
+        esac
+    }
+    apt-get() { sudo apt-get "$@"; }
+fi
+
+# git_all [-j N] [DIR]: fast-forward pull every git repo under DIR (default .), N in parallel (default 8).
+# Only fast-forwards (never creates merge commits), never prompts for credentials, and skips repos
+# with no upstream or a detached HEAD. Warns about https GitHub remotes. Prints one block per repo
+# and a summary at the end.
+__git_all_one() {
+    local repo=${1%/} name before after out n msg="" warn="" r url
+    local c_ok=$'\e[32m' c_dim=$'\e[2m' c_warn=$'\e[33m' c_err=$'\e[31m' c_off=$'\e[0m'
+    repo=${repo%/.git}; name=${repo#./}
+    # GitHub https remotes need a login for private repos (and git_all never prompts); suggest SSH
+    while read -r r url; do
+        warn+=$(printf '\n    %s! %s is https; switch to SSH: git -C %q remote set-url %s git@github.com:%s%s' \
+            "$c_warn" "$r" "$PWD/$name" "$r" "${url#https://github.com/}" "$c_off")
+    done < <(git -C "$repo" remote -v | awk '$3 == "(fetch)" && $2 ~ /^https:\/\/github\.com\// {print $1, $2}')
+    [[ $warn ]] && echo https >>"$2"
+    if ! git -C "$repo" symbolic-ref -q HEAD >/dev/null; then
+        msg=$(printf '%s~ %s%s (detached HEAD, skipped)%s' "$c_warn" "$name" "$c_off$c_dim" "$c_off")
+        echo skipped >>"$2"
+    elif ! git -C "$repo" rev-parse -q --verify '@{u}' >/dev/null; then
+        msg=$(printf '%s~ %s%s (no upstream, skipped)%s' "$c_warn" "$name" "$c_off$c_dim" "$c_off")
+        echo skipped >>"$2"
+    else
+        before=$(git -C "$repo" rev-parse HEAD)
+        if ! out=$(git -C "$repo" pull --ff-only --quiet 2>&1); then
+            msg=$(printf '%s✗ %s%s\n%s' "$c_err" "$name" "$c_off" "$(grep -v -e '^hint:' -e '^[[:space:]]*$' <<<"$out" | sed 's/^/    /')")
+            echo failed >>"$2"
+        else
+            after=$(git -C "$repo" rev-parse HEAD)
+            if [[ $before == "$after" ]]; then
+                msg=$(printf '%s· %s (up to date)%s' "$c_dim" "$name" "$c_off")
+                echo current >>"$2"
+            else
+                n=$(git -C "$repo" rev-list --count "$before..$after")
+                msg=$(printf '%s✓ %s%s (%s new commit%s)\n%s' "$c_ok" "$name" "$c_off" "$n" "$( ((n == 1)) || echo s)" \
+                    "$(git -C "$repo" log --oneline --no-decorate -5 "$before..$after" | sed 's/^/    /')")
+                echo updated >>"$2"
+            fi
+        fi
+    fi
+    # One write per repo so parallel jobs don't interleave
+    printf '%s%s\n' "$msg" "$warn"
+}
+export -f __git_all_one
+
+git_all() {
+    local jobs=8 dir status opt n
+    while getopts 'j:h' opt; do
+        case $opt in
+            j) jobs=$OPTARG ;;
+            *) echo "usage: git_all [-j jobs] [dir]" >&2; return 2 ;;
+        esac
+    done
+    shift $((OPTIND - 1)); OPTIND=1
+    dir=${1:-.}
+    [[ -d $dir ]] || { echo "git_all: $dir: no such directory" >&2; return 1; }
+    status=$(mktemp) || return
+    # Subshell cd so repo names print relative to DIR
+    (
+        builtin cd "$dir" || exit
+        if command -v fd >/dev/null; then
+            # -H/-I: include hidden and gitignored dirs; --prune: don't descend into .git itself
+            command fd -H -I --prune -t d -g .git -0
+        else
+            command find . -type d -name .git -prune -print0
+        fi | sort -z |
+            # Never stop to ask for a password; fail that repo instead. Build on core.sshCommand
+            # (it carries -F for the Bitwarden agent) since GIT_SSH_COMMAND overrides it.
+            GIT_TERMINAL_PROMPT=0 \
+            GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-$(git config --get core.sshCommand || echo ssh)} -o BatchMode=yes" \
+                xargs -0 -r -P "$jobs" -I{} bash -c '__git_all_one "$1" "$2"' _ {} "$status"
+    )
+    printf '\n%d updated, %d up to date, %d skipped, %d failed\n' \
+        "$(grep -c '^updated' "$status")" "$(grep -c '^current' "$status")" \
+        "$(grep -c '^skipped' "$status")" "$(grep -c '^failed' "$status")"
+    n=$(grep -c '^https' "$status")
+    ((n)) && printf '\e[33m%d repo%s with https GitHub remotes (see ! lines above)\e[0m\n' "$n" "$( ((n == 1)) || echo s)"
+    rm -f "$status"
+}
+
+# twingate: Twingate VPN on the host (installed in /usr/local by ~/.local/share/twingate-host).
+#   twingate                  pick work or personal, then connect
+#   twingate work|personal    switch to that account and connect
+#   twingate off              disconnect
+#   twingate add              first-time setup, or sign in to another account
+#   twingate <anything else>  passed to the Twingate CLI (status, resources, account list, ...)
+# Only one account can be connected at a time. Work/personal account ids are asked for once and
+# saved in ~/.config/twingate/accounts.conf. Works from apx containers too (runs on the host).
+__twingate_host() {
+    local bus=/run/host/run/user/$UID/bus
+    if [[ -z ${CONTAINER_ID-} ]]; then
+        "$@"
+    elif [[ -S $bus ]]; then
+        # Talk to the host's session bus: apx-vso-native runs its own systemd and session bus at
+        # /run/user/$UID/bus, where host-spawn can't reach the host and fails with 127
+        DBUS_SESSION_BUS_ADDRESS=unix:path=$bus host-spawn "$@"
+    else
+        host-spawn "$@"
+    fi
+}
+twingate() {
+    local conf=/home/tharpem/.config/twingate/accounts.conf which id
+    case ${1-} in
+        "")
+            PS3="Twingate: "
+            select which in work personal off; do [[ $which ]] && break; done
+            [[ $which ]] || return 1
+            twingate "$which"
+            ;;
+        work|personal)
+            which=$1
+            id=$(sed -n "s/^$which=//p" "$conf" 2>/dev/null)
+            if [[ -z $id ]]; then
+                echo "Which Twingate account is $which? Use email:network, e.g. you@example.com:mynetwork"
+                read -rp "$which account: " id
+                [[ $id ]] || return 1
+                mkdir -p "${conf%/*}"
+                { grep -v "^$which=" "$conf" 2>/dev/null; echo "$which=$id"; } >"$conf.tmp" && mv "$conf.tmp" "$conf"
+            fi
+            # Notifier opens the sign-in page when Twingate asks for authentication
+            __twingate_host systemctl --user start twingate-desktop-notifier.service
+            __twingate_host pkexec /usr/local/libexec/twingate-switch connect "$id"
+            ;;
+        off|stop)
+            __twingate_host pkexec /usr/local/libexec/twingate-switch off
+            ;;
+        add|setup)
+            __twingate_host systemctl --user start twingate-desktop-notifier.service
+            __twingate_host pkexec /usr/local/libexec/twingate-switch add
+            ;;
+        *)
+            __twingate_host /usr/local/bin/twingate-classic "$@"
+            ;;
+    esac
+}

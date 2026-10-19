@@ -1,0 +1,26 @@
+---
+# Host trust store. /usr/local is /var/usrlocal: writable and kept across ABRoot updates.
+- name: Install the CA into the host trust store
+  ansible.builtin.copy:
+    src: "{{ custom_ca_cert }}"
+    dest: /usr/local/share/ca-certificates/{{ custom_ca_cert | regex_replace('\.(pem|crt)$', '') }}.crt
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Update CA certificates
+
+# Qt Flatpaks (e.g. Nextcloud) ignore SSL_CERT_FILE and only search hashed cert dirs; the
+# sandbox's /opt/openssl/certs maps to host /var/opt/openssl/certs.
+- name: Compute the CA subject hash
+  ansible.builtin.command: openssl x509 -hash -noout -in {{ role_path }}/files/{{ custom_ca_cert }}
+  register: system_ca_hash
+  changed_when: false
+  check_mode: false
+
+- name: Install the CA for Qt Flatpaks
+  ansible.builtin.copy:
+    src: "{{ custom_ca_cert }}"
+    dest: /var/opt/openssl/certs/{{ system_ca_hash.stdout }}.0
+    owner: root
+    group: root
+    mode: "0644"

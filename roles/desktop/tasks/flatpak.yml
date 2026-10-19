@@ -1,0 +1,15 @@
+---
+- name: Install Flatpak apps (user)
+  community.general.flatpak:
+    name: "{{ flatpak_apps }}"
+    method: user
+    remote: flathub
+
+# Chrome, Slack: SSL_CERT_FILE unset so they use their own CA bundle.
+# Nextcloud: X11 (with Wayland its tray menu opens mid-screen).
+# Zoom: cursor theme path, since its runtime ships no cursors.
+- name: Install Flatpak overrides
+  ansible.builtin.copy:
+    src: flatpak-overrides/
+    dest: "{{ local_home }}/.local/share/flatpak/overrides/"
+    mode: "0644"

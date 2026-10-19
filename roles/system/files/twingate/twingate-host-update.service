@@ -1,0 +1,8 @@
+[Unit]
+Description=Update the Twingate client in /usr/local
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/twingate-host-update

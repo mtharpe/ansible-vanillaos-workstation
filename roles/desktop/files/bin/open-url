@@ -1,0 +1,4 @@
+#!/bin/sh
+# Open URLs with the desktop default browser (Flatpak Chrome); the host has no xdg-open.
+# Used as $BROWSER by tools that look for one, e.g. the Twingate notifier.
+exec gio open "$@"

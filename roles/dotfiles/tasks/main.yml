@@ -1,0 +1,28 @@
+---
+# Shared by the host and the apx containers: their shells source these by absolute path,
+# because ~ inside a container is that container's own home.
+- name: Create config directories
+  ansible.builtin.file:
+    path: "{{ local_home }}/{{ item.path }}"
+    state: directory
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: .ssh, mode: "0700" }
+    - { path: .config/lazygit, mode: "0755" }
+
+- name: Install dotfiles
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ local_home }}/{{ item.dest }}"
+    mode: "{{ item.mode | default('0644') }}"
+    backup: true
+  loop:
+    - { src: bashrc, dest: .bashrc }
+    - { src: bash_aliases, dest: .bash_aliases }
+    - { src: inputrc, dest: .inputrc }
+    - { src: gitconfig, dest: .gitconfig }
+    - { src: lazygit.yml, dest: .config/lazygit/config.yml }
+    # IdentityAgent = Bitwarden's SSH agent socket in the bitwarden subsystem
+    - { src: ssh_config, dest: .ssh/config, mode: "0600" }
+  loop_control:
+    label: "{{ item.dest }}"
