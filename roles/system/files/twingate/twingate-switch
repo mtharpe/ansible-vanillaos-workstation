@@ -8,27 +8,74 @@
 set -euo pipefail
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
 
+PROFILES=/var/lib/twingate/profiles
+
+# Last line of `twingate status`; while signing in it's the sign-in URL
+state() {
+    local s
+    s=$(twingate-classic status 2>/dev/null | tail -1) || true
+    [[ $s == http* ]] && s=sign-in
+    echo "${s:-unknown}"
+}
+
+# Field of the active account's info.json (email, network_slug)
+active() {
+    sed -n "s/.*\"$1\":\"\([^\"]*\)\".*/\1/p" "$PROFILES/$(<"$PROFILES/default")/info.json" 2>/dev/null
+}
+
+# Whether account id $1 (email or email:network) is the active account. Other id forms (the
+# 4-character account ID) can't be checked here and count as active.
+is_active() {
+    [[ $1 == *@* ]] || return 0
+    [[ $(active email) == "${1%%:*}" ]] || return 1
+    [[ $1 != *:* || $(active network_slug) == "${1#*:}" ]]
+}
+
+# Start the daemon on the active account. In background daemon mode it only connects when the
+# service starts; `twingate start` on a running, paused daemon does nothing.
+cold_start() {
+    systemctl restart twingate.service
+    twingate-classic start >/dev/null 2>&1 || true
+}
+
 case ${1-} in
     connect)
-        # Account id as `twingate account switch` takes it: email, email:network or account ID.
+        # Account id as `twingate account switch` takes it: email or email:network.
         # No account = connect whichever is active (the GNOME panel's toggle does this).
         [[ -z ${2-} || $2 =~ ^[A-Za-z0-9@._:+-]+$ ]] || { echo "twingate-switch: bad account '$2'" >&2; exit 2; }
-        systemctl start twingate.service
-        # Accounts are only listed (by email) after their first sign-in, so if the switch fails,
-        # connect the current network to bring up its sign-in page instead. `account switch` asks
-        # "Are you sure? [y/N]" and reads no from an empty stdin (the panel), so answer it.
-        if [[ ${2-} ]] && ! out=$(printf 'y\ny\ny\n' | twingate-classic account switch -d "$2" 2>&1); then
-            echo "twingate-switch: account switch $2 failed:"$'\n'"$out" >&2
-            # The daemon connects the default profile; name its network (network.conf is only the
-            # default network for new accounts)
-            profiles=/var/lib/twingate/profiles
-            network=$(sed -n 's/.*"network_slug":"\([^"]*\)".*/\1/p' "$profiles/$(<"$profiles/default")/info.json" 2>/dev/null)
-            echo "Account '$2' isn't signed in yet; connecting ${network:-the current network} so you can sign in"
+        if [[ ${2-} ]] && ! is_active "$2"; then
+            # Only ever change accounts with the daemon stopped. `account switch` on a running
+            # daemon pauses it and then restarts it with sudo, which the host lacks, so it stays
+            # paused on the old account; when that daemon later stops it saves its state into
+            # the new account and wipes that account's sign-in.
+            systemctl stop twingate.service
+            # Exits 1 even when the switch worked (the sudo restart again), so check the result.
+            # It asks "Are you sure? [y/N]" and reads no from an empty stdin, so answer it.
+            out=$(printf 'y\ny\ny\n' | twingate-classic account switch -d "$2" 2>&1) || true
+            if ! is_active "$2"; then
+                # Accounts are only listed after their first sign-in; `twingate add` signs in
+                echo "twingate-switch: couldn't switch to '$2' (not signed in yet? use add):"$'\n'"$out" >&2
+                echo "Reconnecting $(active network_slug) instead" >&2
+            fi
+            cold_start
+        elif [[ $(state) != online ]]; then
+            cold_start
         fi
-        # In background daemon mode the daemon only connects when the service starts; after a
-        # disconnect `twingate start` just sees the service running and waits, so restart it
-        [[ $(twingate-classic status 2>/dev/null | tail -1) == online ]] || systemctl restart twingate.service
-        twingate-classic start
+        # Wait for the connection (a sign-in page counts: the notifier opens it in the browser)
+        for ((i = 0; i < 20; i++)); do
+            s=$(state)
+            [[ $s == online || $s == sign-in ]] && break
+            sleep 1
+        done
+        case $s in
+            online) echo "Twingate: online ($(active network_slug))" ;;
+            sign-in) echo "Twingate: sign in to $(active network_slug) in your browser to finish connecting" ;;
+            *)
+                echo "twingate-switch: Twingate is '$s', not online" >&2
+                exit 1
+                ;;
+        esac
+        [[ -z ${2-} ]] || is_active "$2"
         ;;
     off)
         # `twingate stop` also runs `systemctl --user stop twingate-desktop-notifier`, which fails
