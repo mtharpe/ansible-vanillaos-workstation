@@ -1,6 +1,7 @@
 ---
 # Inside the apx subsystems (created by apx_host in user.yml). Each has its own $HOME under
-# ~/.apx-homes, which is where per-profile installs (claude CLI, Zed) go.
+# ~/.apx-homes, which is where per-profile installs (claude CLI, Zed) go. apx-vso-native comes
+# with the OS and shares the host $HOME.
 - name: Apx subsystem setup
   hosts: apx
   gather_facts: false
@@ -10,3 +11,13 @@
 
   roles:
     - apx_container
+
+- name: Vso-native setup
+  hosts: apx_vso
+  gather_facts: false
+
+  vars_files:
+    - vars/vars.yml
+
+  roles:
+    - vso_native

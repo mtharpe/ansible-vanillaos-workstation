@@ -1,0 +1,3 @@
+---
+# apt packages added on top of the Vanilla OS VSO image
+vso_native_packages: [tmux, git, neovim, jq]

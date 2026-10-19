@@ -9,7 +9,6 @@
     mode: "0755"
   loop:
     - "{{ local_home }}/.local/bin"
-    - "{{ local_home }}/.local/share/blesh"
 
 - name: Create a cache directory per tool version
   ansible.builtin.file:
@@ -53,11 +52,11 @@
   loop_control:
     label: btop {{ item.version }}
 
-# ble.sh (syntax highlighting / autosuggestions for bash), nightly build
-- name: Install ble.sh
-  ansible.builtin.unarchive:
-    src: https://github.com/akinomyoga/ble.sh/releases/download/nightly/ble-nightly.tar.xz
-    dest: "{{ local_home }}/.local/share/blesh"
-    remote_src: true
-    extra_opts: [--strip-components=1]
-    creates: "{{ local_home }}/.local/share/blesh/ble.sh"
+# ble.sh (fish-style suggestions for bash) was tried and dropped; clean up an old install
+- name: Remove ble.sh
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ local_home }}/.local/share/blesh"
+    - "{{ local_home }}/.cache/blesh"

@@ -58,13 +58,9 @@ if [[ -x $__bin/fzf ]]; then
     [[ -x $__bin/fd ]] && export FZF_ALT_C_COMMAND="$__bin/fd --type d --hidden --exclude .git"
     export FZF_ALT_C_OPTS="--preview '$__bin/eza --tree --level 2 --icons=always --color=always {}'"
     # Ctrl-R history search, Ctrl-T insert file path, Alt-C cd into directory, ** <Tab> completion
-    if [[ ${BLE_VERSION-} ]]; then
-        # ble.sh's own fzf integration (raw fzf bindings misbehave under ble.sh)
-        ble-import -d integration/fzf-completion
-        ble-import -d integration/fzf-key-bindings
-    else
-        eval "$("$__bin/fzf" --bash)"
-    fi
+    eval "$("$__bin/fzf" --bash)"
+    # Ctrl-H: same fzf history search as Ctrl-R (free because Ptyxis sends DEL for Backspace)
+    bind -m emacs-standard -x '"\C-h": __fzf_history__'
     # Fuzzy-pick a file with a bat preview and open it in nvim
     fe() {
         local f

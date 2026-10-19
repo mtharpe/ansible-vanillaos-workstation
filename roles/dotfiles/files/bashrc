@@ -13,9 +13,6 @@ esac
 # Readline settings live in the host home (apx containers have their own $HOME)
 export INPUTRC=/home/tharpem/.inputrc
 
-# ble.sh: Fish-style autosuggestions, syntax highlighting, completion menu (attached at the end)
-[[ -f /home/tharpem/.local/share/blesh/ble.sh ]] && source /home/tharpem/.local/share/blesh/ble.sh --noattach
-
 # don't put duplicate lines or lines starting with space in the history.
 # See bash(1) for more options
 HISTCONTROL=ignoreboth
@@ -99,12 +96,7 @@ __git_right() {
 }
 
 __left_ps1=$PS1
-if [[ ${BLE_VERSION-} ]]; then
-    # ble.sh draws the prompt itself, so use its right-prompt instead of the cursor-jump trick
-    bleopt prompt_rps1='\[\e[33m\]$(__git_right)\[\e[0m\]'
-fi
 __set_prompt() {
-    [[ ${BLE_VERSION-} ]] && return
     __gr=$(__git_right)
     __gcol=$(( COLUMNS - ${#__gr} + 1 ))
     if [[ -n $__gr ]]; then
@@ -246,6 +238,3 @@ host-remove() {
 host-update() {
     __host_abroot 'abroot upgrade "$@"' "$@"
 }
-
-# Attach ble.sh last so it wraps everything above (keep this at the end)
-[[ ! ${BLE_VERSION-} ]] || ble-attach
