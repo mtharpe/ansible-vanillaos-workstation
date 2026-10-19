@@ -67,6 +67,14 @@
         extra_opts: [--strip-components=1]
         creates: "{{ desktop_extensions_dir }}/twingate-panel@mtharpe/metadata.json"
 
+# Local extensions kept in this repo
+- name: Install local extensions
+  ansible.builtin.copy:
+    src: gnome-extensions/
+    dest: "{{ desktop_extensions_dir }}/"
+    mode: "0644"
+    directory_mode: "0755"
+
 - name: Compile twingate-panel settings schema
   ansible.builtin.command: glib-compile-schemas {{ desktop_extensions_dir }}/twingate-panel@mtharpe/schemas
   args:
