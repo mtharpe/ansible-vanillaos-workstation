@@ -1,0 +1,11 @@
+[Unit]
+Description=Switch power profile on AC plug/unplug (AC: performance, battery: balanced)
+After=graphical-session.target
+
+[Service]
+ExecStart=%h/.local/bin/power-profile-auto
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

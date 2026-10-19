@@ -1,0 +1,84 @@
+#!/bin/bash
+# Install or update the Twingate Linux client on the Vanilla OS host, outside ABRoot.
+# /usr is read-only, so the official .deb is unpacked by hand into /usr/local (= /var/usrlocal,
+# kept across ABRoot updates) with its systemd units rewritten to point there.
+#   twingate-host-update          install, or update if Twingate published a newer version
+#   twingate-host-update --force  reinstall the latest version
+# Runs as root (pkexec once by hand, then twingate-host-update.timer weekly).
+set -euo pipefail
+
+REPO=https://packages.twingate.com/apt
+STATE=/var/lib/twingate-host
+PREFIX=/usr/local
+
+[[ $EUID -eq 0 ]] || { echo "twingate-host-update: must run as root" >&2; exit 1; }
+force=0; [[ ${1-} == --force ]] && force=1
+
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+mkdir -p "$STATE"
+
+# Latest amd64 "twingate" package: version, path and sha256 from the apt index
+curl -fsSL "$REPO/Packages" -o "$work/Packages"
+read -r version file sha < <(python3 -I - "$work/Packages" <<'EOF'
+import re, sys
+stanzas = open(sys.argv[1]).read().split("\n\n")
+pkgs = []
+for s in stanzas:
+    f = dict(l.split(": ", 1) for l in s.splitlines() if ": " in l and not l.startswith(" "))
+    if f.get("Package") == "twingate" and f.get("Architecture") == "amd64":
+        pkgs.append(f)
+pkgs.sort(key=lambda f: [int(x) for x in re.findall(r"\d+", f["Version"])])
+f = pkgs[-1]
+print(f["Version"], f["Filename"], f["SHA256"])
+EOF
+)
+
+if [[ $force -eq 0 && -f $STATE/installed-version && $(<"$STATE/installed-version") == "$version" ]]; then
+    echo "Twingate $version is already installed"
+    exit 0
+fi
+echo "Installing Twingate $version"
+
+curl -fsSL "$REPO/$file" -o "$work/twingate.deb"
+echo "$sha  $work/twingate.deb" | sha256sum -c --quiet
+(cd "$work" && ar x twingate.deb && mkdir root && tar -xf data.tar.* -C root)
+src=$work/root
+
+# Binaries and completion
+install -Dm755 "$src/usr/sbin/twingated" "$PREFIX/sbin/twingated"
+install -Dm755 "$src/usr/bin/twingate-classic" "$PREFIX/bin/twingate-classic"
+install -Dm755 "$src/usr/bin/twingate-notifier" "$PREFIX/bin/twingate-notifier"
+ln -sf twingate-classic "$PREFIX/bin/twingate"
+install -Dm644 "$src/usr/share/bash-completion/completions/twingate" \
+    "$PREFIX/share/bash-completion/completions/twingate"
+
+# Config: only the defaults that don't exist yet (the client writes its own state here)
+install -dm755 /etc/twingate
+for f in "$src"/etc/twingate/*; do
+    [[ -e /etc/twingate/${f##*/} ]] || install -m644 "$f" /etc/twingate/
+done
+# New installs run the daemon in background mode, as the package's postinst does
+[[ -f /etc/twingate/daemon.conf ]] || echo '{"daemon_mode":"background"}' >/etc/twingate/daemon.conf
+
+# systemd units, pointed at /usr/local
+sed "s|/usr/sbin/twingated|$PREFIX/sbin/twingated|" "$src/usr/lib/systemd/system/twingate.service" \
+    >/etc/systemd/system/twingate.service
+install -dm755 /etc/systemd/user
+sed "s|/usr/bin/twingate-notifier|$PREFIX/bin/twingate-notifier|" \
+    "$src/usr/lib/systemd/user/twingate-desktop-notifier.service" \
+    >/etc/systemd/user/twingate-desktop-notifier.service
+
+# State directories, as the package's postinst creates them
+install -dm711 /var/lib/twingate
+install -dm1777 /var/lib/twingate/profiles
+"$PREFIX/sbin/twingated" --device-id >/dev/null 2>&1 || true
+
+systemctl daemon-reload
+# twingate.service stays disabled at boot (the package's preset); the launcher starts it on connect
+systemctl --global enable twingate-desktop-notifier.service >/dev/null 2>&1 || true
+# Pick up the new binary if it was running
+systemctl try-restart twingate.service
+
+echo "$version" >"$STATE/installed-version"
+echo "Twingate $version installed"

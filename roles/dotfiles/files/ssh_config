@@ -1,0 +1,5 @@
+# Use the Bitwarden desktop SSH agent (runs in the bitwarden apx subsystem).
+# Absolute paths: each apx container has its own $HOME, so ~ would point somewhere else.
+Host *
+    IdentityAgent /home/tharpem/.apx-homes/bitwarden/.bitwarden-ssh-agent.sock
+    UserKnownHostsFile /home/tharpem/.ssh/known_hosts

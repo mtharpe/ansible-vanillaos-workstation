@@ -1,0 +1,6 @@
+# Shared by host and apx containers via LG_CONFIG_FILE (set in ~/.bash_aliases)
+git:
+  pagers:
+    # Syntax-highlighted diffs in the diff panel; cycle pagers with | in lazygit
+    - pager: /home/tharpem/.local/bin/delta --paging=never
+    - pager: /home/tharpem/.local/bin/delta --paging=never --side-by-side

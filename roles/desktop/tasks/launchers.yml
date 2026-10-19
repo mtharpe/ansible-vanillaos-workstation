@@ -1,0 +1,62 @@
+---
+# Host has no xdg-mime/xdg-open (Chrome is a Flatpak); open-url wraps `gio open`.
+# claude-desktop-launcher / zed-launcher pick the work or personal apx subsystem.
+- name: Install helper scripts
+  ansible.builtin.copy:
+    src: bin/{{ item }}
+    dest: "{{ local_home }}/.local/bin/{{ item }}"
+    mode: "0755"
+  loop:
+    - open-url
+    - claude-desktop-launcher
+    - zed-launcher
+    - power-profile-auto
+    - update-hatter-icons
+
+- name: Install menu entries
+  ansible.builtin.copy:
+    src: applications/{{ item }}
+    dest: "{{ local_home }}/.local/share/applications/{{ item }}"
+    mode: "0644"
+  loop:
+    - bitwarden-apx.desktop
+    - claude-desktop-launcher.desktop
+    - zed-launcher.desktop
+
+# Edited key by key: apps add their own entries to this file
+- name: Register URL scheme handlers
+  community.general.ini_file:
+    path: "{{ local_home }}/.config/mimeapps.list"
+    section: Default Applications
+    option: "{{ item.key }}"
+    value: "{{ item.value }}"
+    no_extra_spaces: true
+    mode: "0644"
+  loop: "{{ desktop_url_handlers | dict2items }}"
+
+- name: Install login autostart entries
+  ansible.builtin.copy:
+    src: autostart/{{ item }}
+    dest: "{{ local_home }}/.config/autostart/{{ item }}"
+    mode: "0644"
+  loop:
+    - bitwarden-apx.desktop
+    - com.nextcloud.desktopclient.nextcloud.desktop
+
+# One Zed config shared by every apx profile: each container's ~/.config/zed links here
+# (apx_container role). Seeded only, since Zed rewrites settings.json from its UI.
+- name: Create the shared Zed config dir
+  ansible.builtin.file:
+    path: "{{ local_home }}/.apx-homes/zed-config"
+    state: directory
+    mode: "0755"
+
+- name: Seed the shared Zed config
+  ansible.builtin.copy:
+    src: zed-config/{{ item }}
+    dest: "{{ local_home }}/.apx-homes/zed-config/{{ item }}"
+    mode: "0644"
+    force: false
+  loop:
+    - settings.json
+    - keymap.json

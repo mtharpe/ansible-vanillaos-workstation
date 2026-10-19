@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Bitwarden
+GenericName=Password Manager
+Comment=Bitwarden desktop (runs in the bitwarden apx subsystem)
+Exec=/usr/share/apx/distrobox/distrobox-enter -n apx-bitwarden -- /opt/Bitwarden/bitwarden %U
+Terminal=false
+Type=Application
+Icon=bitwarden
+StartupWMClass=Bitwarden
+MimeType=x-scheme-handler/bitwarden;
+Categories=Utility;

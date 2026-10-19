@@ -1,0 +1,251 @@
+# Vanilla OS Default .bashrc file
+
+# ~/.bashrc: executed by bash(1) for non-login shells.
+# see /usr/share/doc/bash/examples/startup-files (in the package bash-doc)
+# for examples
+
+# If not running interactively, don't do anything
+case $- in
+    *i*) ;;
+      *) return;;
+esac
+
+# Readline settings live in the host home (apx containers have their own $HOME)
+export INPUTRC=/home/tharpem/.inputrc
+
+# ble.sh: Fish-style autosuggestions, syntax highlighting, completion menu (attached at the end)
+[[ -f /home/tharpem/.local/share/blesh/ble.sh ]] && source /home/tharpem/.local/share/blesh/ble.sh --noattach
+
+# don't put duplicate lines or lines starting with space in the history.
+# See bash(1) for more options
+HISTCONTROL=ignoreboth
+
+# append to the history file, don't overwrite it
+shopt -s histappend
+
+# for setting history length see HISTSIZE and HISTFILESIZE in bash(1)
+HISTSIZE=1000
+HISTFILESIZE=2000
+
+# check the window size after each command and, if necessary,
+# update the values of LINES and COLUMNS.
+shopt -s checkwinsize
+
+# set variable identifying the chroot you work in (used in the prompt below)
+if [ -z "${debian_chroot:-}" ] && [ -r /etc/debian_chroot ]; then
+    debian_chroot=$(cat /etc/debian_chroot)
+fi
+
+# set a fancy prompt (non-color, unless we know we "want" color)
+case "$TERM" in
+    xterm-color|*-256color) color_prompt=yes;;
+esac
+
+# uncomment for a colored prompt, if the terminal has the capability; turned
+# off by default to not distract the user: the focus in a terminal window
+# should be on the output of commands, not on the prompt
+#force_color_prompt=yes
+
+if [ -n "$force_color_prompt" ]; then
+    if [ -x /usr/bin/tput ] && tput setaf 1 >&/dev/null; then
+	# We have color support; assume it's compliant with Ecma-48
+	# (ISO/IEC-6429). (Lack of such support is extremely rare, and such
+	# a case would tend to support setf rather than setaf.)
+	color_prompt=yes
+    else
+	color_prompt=
+    fi
+fi
+
+# set the PS1 based on whether you are inside a container or on the host, 
+# in the first case $CONTAINER_ID will be used instead of the hostname (\h)
+if [ "$color_prompt" = yes ]; then
+    if [[ -n "${CONTAINER_ID}" ]]; then
+        PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\](${CONTAINER_ID#apx-})\[\033[00m\] \[\033[01;34m\]\w\[\033[00m\]\$ '
+    else
+        PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+    fi
+else
+    if [[ -n "${CONTAINER_ID}" ]]; then
+        PS1='${debian_chroot:+($debian_chroot)}(${CONTAINER_ID#apx-}) \w\$ '
+    else
+        PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\$ '
+    fi
+fi
+
+unset color_prompt force_color_prompt
+
+# If this is an xterm set the title to user@host:dir
+case "$TERM" in
+xterm*|rxvt*)
+    PS1="\[\e]0;${debian_chroot:+($debian_chroot)}\u@\h: \w\a\]$PS1"
+    ;;
+*)
+    ;;
+esac
+
+# Right-aligned git status: (branch[*] [↑ahead] [↓behind])
+__git_right() {
+    command -v git >/dev/null || return
+    local branch dirty="" ab ahead behind extra=""
+    branch=$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --short HEAD 2>/dev/null) || return
+    [[ -n $(git status --porcelain 2>/dev/null) ]] && dirty="*"
+    if ab=$(git rev-list --left-right --count '@{u}...HEAD' 2>/dev/null); then
+        read -r behind ahead <<<"$ab"
+        (( ahead ))  && extra+=" ↑$ahead"
+        (( behind )) && extra+=" ↓$behind"
+    fi
+    printf '%s' "($branch$dirty$extra)"
+}
+
+__left_ps1=$PS1
+if [[ ${BLE_VERSION-} ]]; then
+    # ble.sh draws the prompt itself, so use its right-prompt instead of the cursor-jump trick
+    bleopt prompt_rps1='\[\e[33m\]$(__git_right)\[\e[0m\]'
+fi
+__set_prompt() {
+    [[ ${BLE_VERSION-} ]] && return
+    __gr=$(__git_right)
+    __gcol=$(( COLUMNS - ${#__gr} + 1 ))
+    if [[ -n $__gr ]]; then
+        # \e7 = save cursor, \e[NG = go to column N, \e8 = restore cursor
+        PS1='\[\e7\e[${__gcol}G\e[33m${__gr}\e[0m\e8\]'"$__left_ps1"
+    else
+        PS1=$__left_ps1
+    fi
+}
+PROMPT_COMMAND="__set_prompt${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
+
+# enable color support of ls
+if [ -x /usr/bin/dircolors ]; then
+    test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
+    alias ls='ls --color=auto'
+fi
+
+# Prepend ~/.local/bin to the PATH in order to give precedence to user-installed
+# executables.
+export PATH="$HOME/.local/bin:$PATH"
+
+# !!! LOOKING FOR CUSTOM ALIASES? !!!
+# You may want to put all your additions into a separate file like
+# ~/.bash_aliases, instead of adding them here directly.
+# See /usr/share/doc/bash-doc/examples in the bash-doc package.
+if [ -f /home/tharpem/.bash_aliases ]; then
+    . /home/tharpem/.bash_aliases
+fi
+
+# enable programmable completion features (you don't need to enable
+# this, if it's already enabled in /etc/bash.bashrc and /etc/profile
+# sources /etc/bash.bashrc).
+if ! shopt -oq posix; then
+  if [ -f /usr/share/bash-completion/bash_completion ]; then
+    . /usr/share/bash-completion/bash_completion
+  elif [ -f /etc/bash_completion ]; then
+    . /etc/bash_completion
+  fi
+fi
+
+[ -f ~/.local/share/bash-completion/completions/apx ] && source ~/.local/share/bash-completion/completions/apx
+
+# USER CHANGES - START
+alias c="clear"
+alias vi="nvim"
+alias vim="nvim"
+
+
+# Claude Code: pick work/personal account, each in its own apx subsystem (separate $HOME)
+claude() {
+    # Already inside one of the claude subsystems: run the real binary
+    if [[ "${CONTAINER_ID:-}" == apx-claude-* ]]; then
+        command claude "$@"
+        return
+    fi
+
+    local acct
+    case "${1:-}" in
+        work|personal) acct="$1"; shift ;;
+        *)
+            PS3="Claude account: "
+            select acct in work personal; do
+                [[ -n "$acct" ]] && break
+            done
+            [[ -z "$acct" ]] && return 1
+            ;;
+    esac
+
+    host-shell /usr/share/apx/distrobox/distrobox-enter -n "apx-claude-${acct}" -- \
+        bash -lc 'cd "$1" 2>/dev/null; shift; exec ~/.local/bin/claude "$@"' _ "$PWD" "$@"
+}
+
+# Ansible: run inside the "ansible" apx subsystem
+#   ansible            -> open a shell in the ansible subsystem
+#   ansible <args...>  -> run the ansible command there with those args
+ansible() {
+    # Already inside the ansible subsystem: run the real binary
+    if [[ "${CONTAINER_ID:-}" == apx-ansible ]]; then
+        command ansible "$@"
+        return
+    fi
+
+    if [[ $# -eq 0 ]]; then
+        host-shell /usr/share/apx/distrobox/distrobox-enter -n apx-ansible -- \
+            bash -lc 'cd "$1" 2>/dev/null; exec bash -l' _ "$PWD"
+    else
+        host-shell /usr/share/apx/distrobox/distrobox-enter -n apx-ansible -- \
+            bash -lc 'cd "$1" 2>/dev/null; shift; exec ansible "$@"' _ "$PWD" "$@"
+    fi
+}
+
+# tmux: run inside the "vso-native" apx subsystem (tmux isn't on the host)
+#   tmux            -> start a new tmux session there
+#   tmux <args...>  -> run tmux there with those args (e.g. tmux attach)
+tmux() {
+    # Already inside the vso-native subsystem: run the real binary
+    if [[ "${CONTAINER_ID:-}" == apx-vso-native ]]; then
+        command tmux "$@"
+        return
+    fi
+
+    host-shell /usr/share/apx/distrobox/distrobox-enter -n apx-vso-native -- \
+        bash -lc 'cd "$1" 2>/dev/null; shift; exec tmux "$@"' _ "$PWD" "$@"
+}
+
+# SSH keys come from the Bitwarden desktop agent (bitwarden apx subsystem)
+if [[ -S "$HOME/.apx-homes/bitwarden/.bitwarden-ssh-agent.sock" ]]; then
+    export SSH_AUTH_SOCK="$HOME/.apx-homes/bitwarden/.bitwarden-ssh-agent.sock"
+fi
+
+# Host packages (Vanilla OS host, via ABRoot; changes take effect after a reboot)
+#   host-install <pkg...>  -> add packages to the host image and apply
+#   host-remove <pkg...>   -> remove packages from the host image and apply
+#   host-update [args...]  -> upgrade the host system image (e.g. --check-only)
+__host_abroot() {
+    # One pkexec call so the whole batch needs a single password prompt
+    local cmd=(pkexec bash -c "$1" _ "${@:2}")
+    if [[ -z "${CONTAINER_ID:-}" ]]; then
+        "${cmd[@]}"
+    elif command -v host-shell >/dev/null; then
+        host-shell "${cmd[@]}"
+    else
+        host-spawn "${cmd[@]}"
+    fi
+}
+
+host-install() {
+    (( $# )) || { echo "usage: host-install <pkg>..." >&2; return 2; }
+    __host_abroot 'for p; do abroot pkg add "$p" || exit; done; abroot pkg apply' "$@" &&
+        echo "Installed on next boot: $*"
+}
+
+host-remove() {
+    (( $# )) || { echo "usage: host-remove <pkg>..." >&2; return 2; }
+    __host_abroot 'for p; do abroot pkg remove "$p" || exit; done; abroot pkg apply' "$@" &&
+        echo "Removed on next boot: $*"
+}
+
+host-update() {
+    __host_abroot 'abroot upgrade "$@"' "$@"
+}
+
+# Attach ble.sh last so it wraps everything above (keep this at the end)
+[[ ! ${BLE_VERSION-} ]] || ble-attach

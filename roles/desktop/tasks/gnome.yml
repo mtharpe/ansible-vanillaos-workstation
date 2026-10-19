@@ -1,0 +1,93 @@
+---
+- name: Get the GNOME Shell version
+  ansible.builtin.command: gnome-shell --version
+  register: desktop_shell_version
+  changed_when: false
+  check_mode: false
+
+- name: Check which extensions.gnome.org extensions are installed
+  ansible.builtin.stat:
+    path: "{{ desktop_extensions_dir }}/{{ item }}"
+  loop: "{{ gnome_extensions_ego }}"
+  register: desktop_ego_installed
+
+- name: Look up downloads for missing extensions
+  ansible.builtin.uri:
+    url: https://extensions.gnome.org/extension-info/?uuid={{ item.item }}&shell_version={{ desktop_shell_version.stdout.split()[-1].split('.')[0] }}
+    return_content: true
+  loop: "{{ desktop_ego_installed.results | rejectattr('stat.exists') }}"
+  loop_control:
+    label: "{{ item.item }}"
+  register: desktop_ego_info
+
+- name: Download missing extensions
+  ansible.builtin.get_url:
+    url: https://extensions.gnome.org{{ item.json.download_url }}
+    dest: /tmp/{{ item.item.item }}.zip
+    mode: "0644"
+  loop: "{{ desktop_ego_info.results }}"
+  loop_control:
+    label: "{{ item.item.item }}"
+
+# Loads at the next login on Wayland; enabling is done through enabled-extensions below
+- name: Install missing extensions
+  ansible.builtin.command: gnome-extensions install --force /tmp/{{ item.item.item }}.zip
+  loop: "{{ desktop_ego_info.results }}"
+  loop_control:
+    label: "{{ item.item.item }}"
+  changed_when: true
+
+# twingate-panel: the dev checkout if there is one, otherwise main from GitHub
+- name: Check for the twingate-panel checkout
+  ansible.builtin.stat:
+    path: "{{ twingate_panel_checkout }}/metadata.json"
+  register: desktop_panel_checkout
+
+- name: Link twingate-panel to the checkout
+  ansible.builtin.file:
+    src: "{{ twingate_panel_checkout }}"
+    dest: "{{ desktop_extensions_dir }}/twingate-panel@mtharpe"
+    state: link
+  when: desktop_panel_checkout.stat.exists
+
+- name: Install twingate-panel from GitHub
+  when: not desktop_panel_checkout.stat.exists
+  block:
+    - name: Create the twingate-panel extension dir
+      ansible.builtin.file:
+        path: "{{ desktop_extensions_dir }}/twingate-panel@mtharpe"
+        state: directory
+        mode: "0755"
+
+    - name: Unpack twingate-panel
+      ansible.builtin.unarchive:
+        src: "{{ twingate_panel_tarball }}"
+        dest: "{{ desktop_extensions_dir }}/twingate-panel@mtharpe"
+        remote_src: true
+        extra_opts: [--strip-components=1]
+        creates: "{{ desktop_extensions_dir }}/twingate-panel@mtharpe/metadata.json"
+
+- name: Compile twingate-panel settings schema
+  ansible.builtin.command: glib-compile-schemas {{ desktop_extensions_dir }}/twingate-panel@mtharpe/schemas
+  args:
+    creates: "{{ desktop_extensions_dir }}/twingate-panel@mtharpe/schemas/gschemas.compiled"
+
+- name: Apply GNOME settings
+  community.general.dconf:
+    key: "{{ item.key }}"
+    value: "{{ item.value }}"
+  loop: "{{ desktop_dconf | dict2items }}"
+
+- name: Define custom keyboard shortcuts
+  community.general.dconf:
+    key: "{{ desktop_keybinding_path }}/custom{{ gnome_custom_keybindings.index(item.0) }}/{{ item.1 }}"
+    value: "'{{ item.0[item.1] }}'"
+  loop: "{{ gnome_custom_keybindings | product(['name', 'command', 'binding']) }}"
+  loop_control:
+    label: "{{ item.0.name }} {{ item.1 }}"
+
+- name: List custom keyboard shortcuts
+  community.general.dconf:
+    key: "{{ desktop_keybinding_path }}"
+    value: >-
+      [{% for kb in gnome_custom_keybindings %}'{{ desktop_keybinding_path }}/custom{{ loop.index0 }}/'{{ ', ' if not loop.last }}{% endfor %}]

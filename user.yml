@@ -1,0 +1,15 @@
+---
+# Everything in the desktop user's home and session: CLI tools, dotfiles, GNOME, Flatpaks,
+# launchers, user services, and creating the apx subsystems.
+- name: Host user setup
+  hosts: workstation
+  gather_facts: false
+
+  vars_files:
+    - vars/vars.yml
+
+  roles:
+    - cli_tools
+    - dotfiles
+    - desktop
+    - apx_host

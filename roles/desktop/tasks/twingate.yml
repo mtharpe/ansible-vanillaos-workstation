@@ -1,0 +1,10 @@
+---
+# Account ids for `twingate work|personal` (the shell function in bash_aliases)
+- name: Save Twingate account ids
+  ansible.builtin.copy:
+    content: |
+      {% for name, id in twingate_accounts.items() %}
+      {{ name }}={{ id }}
+      {% endfor %}
+    dest: "{{ local_home }}/.config/twingate/accounts.conf"
+    mode: "0644"

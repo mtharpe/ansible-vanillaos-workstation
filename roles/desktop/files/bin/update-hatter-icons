@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Update the Hatter icon theme (https://github.com/Mibea/Hatter) in ~/.local/share/icons.
+# Skips the download when upstream hasn't changed since the last install.
+# Usage: update-hatter-icons [--force]
+set -euo pipefail
+
+REPO=Mibea/Hatter
+DEST="$HOME/.local/share/icons"
+STATE_DIR="$HOME/.local/state/hatter-update"
+SHA_FILE="$STATE_DIR/installed-sha"
+THEMES=(Hatter Hatter-Blue Hatter-Green Hatter-Orange Hatter-Pink Hatter-Purple
+        Hatter-Red Hatter-Slate Hatter-Teal Hatter-Yellow Hatter-Yaru)
+
+mkdir -p "$STATE_DIR" "$DEST"
+
+latest=$(curl -fsSL -H 'Accept: application/vnd.github.sha' \
+  "https://api.github.com/repos/$REPO/commits/HEAD")
+installed=$(cat "$SHA_FILE" 2>/dev/null || true)
+
+if [[ "${1:-}" != --force && "$latest" == "$installed" ]]; then
+  echo "Hatter is up to date ($latest)"
+  exit 0
+fi
+echo "Updating Hatter ${installed:-<none>} -> $latest"
+
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+curl -fsSL "https://codeload.github.com/$REPO/tar.gz/$latest" | tar -xz -C "$work"
+src=$(echo "$work"/Hatter-*)
+
+for t in "${THEMES[@]}"; do
+  [[ -f "$src/$t/index.theme" ]] || { echo "missing $t in download, aborting" >&2; exit 1; }
+done
+
+for t in "${THEMES[@]}"; do
+  # Stage next to the live copy, then swap, so the theme is never half-installed.
+  rm -rf "$DEST/.$t.new"
+  cp -a "$src/$t" "$DEST/.$t.new"
+  find "$DEST/.$t.new" -name '*.sh' -delete   # developer recolor scripts, not icons
+  rm -rf "$DEST/$t"
+  mv "$DEST/.$t.new" "$DEST/$t"
+  # The base theme's cache can't be rebuilt (filenames with spaces); keep the shipped one.
+  gtk-update-icon-cache -f -q "$DEST/$t" 2>/dev/null || rm -f "$DEST/$t/.icon-theme.cache"
+done
+
+echo "$latest" > "$SHA_FILE"
+echo "Hatter updated to $latest"

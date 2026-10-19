@@ -1,0 +1,10 @@
+---
+# Plugging in the dock with the lid closed wakes the laptop (USB4 ports + xHCI root hubs).
+- name: Install the dock wake udev rule
+  ansible.builtin.copy:
+    src: 90-usb4-wake-on-dock.rules
+    dest: /etc/udev/rules.d/90-usb4-wake-on-dock.rules
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload udev rules

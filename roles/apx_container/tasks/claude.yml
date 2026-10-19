@@ -1,0 +1,83 @@
+---
+# Work and personal Claude profiles: Claude Desktop, the claude CLI and Zed live in each
+# subsystem so their logins stay separate. The host launchers pick which one to run.
+- name: Add the Claude Desktop apt key
+  ansible.builtin.get_url:
+    url: https://downloads.claude.ai/claude-desktop/key.asc
+    dest: /etc/apt/keyrings/claude-desktop-archive-keyring.asc
+    mode: "0644"
+  become: true
+
+- name: Add the Claude Desktop apt repo
+  ansible.builtin.copy:
+    content: |
+      Types: deb
+      URIs: https://downloads.claude.ai/claude-desktop/apt/stable
+      Suites: stable
+      Components: main
+      Architectures: amd64 arm64
+      Signed-By: /etc/apt/keyrings/claude-desktop-archive-keyring.asc
+    dest: /etc/apt/sources.list.d/claude-desktop.sources
+    mode: "0644"
+  become: true
+
+# nodejs/npm: Zed's Claude agent runs via npx @agentclientprotocol/claude-agent-acp
+- name: Install Claude Desktop and Node
+  ansible.builtin.apt:
+    name: [claude-desktop, nodejs, npm, curl, ca-certificates]
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+  when: apx_python3_apt.stdout == 'installed' or not ansible_check_mode
+
+# The host has no xdg-open, so links and sign-ins opened from here go to the host's gio
+- name: Open URLs on the host
+  ansible.builtin.copy:
+    content: |
+      #!/bin/sh
+      # Open URLs/files on the host. Vanilla OS host has no xdg-open, so use gio.
+      exec /usr/bin/distrobox-host-exec gio open "$@"
+    dest: /usr/local/bin/xdg-open
+    mode: "0755"
+  become: true
+
+- name: Install the claude CLI
+  ansible.builtin.shell: set -o pipefail && curl -fsSL https://claude.ai/install.sh | bash
+  args:
+    executable: /bin/bash
+    creates: "{{ apx_home }}/.local/bin/claude"
+
+# Zed self-updates afterwards
+- name: Install Zed
+  ansible.builtin.shell: set -o pipefail && curl -fsSL https://zed.dev/install.sh | sh
+  args:
+    executable: /bin/bash
+    creates: "{{ apx_home }}/.local/zed.app"
+
+- name: Create ~/.config
+  ansible.builtin.file:
+    path: "{{ apx_home }}/.config"
+    state: directory
+    mode: "0700"
+
+# A link to the whole dir: Zed saves settings by atomic rename, which breaks per-file links
+- name: Share the Zed config across profiles
+  ansible.builtin.file:
+    src: "{{ local_home }}/.apx-homes/zed-config"
+    dest: "{{ apx_home }}/.config/zed"
+    state: link
+    force: true
+
+# Icons for the host menu entries (the host home is mounted in every subsystem)
+- name: Copy launcher icons to the host
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ local_home }}/.local/share/icons/hicolor/{{ item.size }}/apps/{{ item.src | basename }}"
+    remote_src: true
+    mode: "0644"
+  loop:
+    - { src: /usr/share/icons/hicolor/256x256/apps/claude-desktop.png, size: 256x256 }
+    - { src: "{{ apx_home }}/.local/zed.app/share/icons/hicolor/512x512/apps/zed.png", size: 512x512 }
+  loop_control:
+    label: "{{ item.src | basename }}"
+  run_once: true

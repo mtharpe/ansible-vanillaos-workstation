@@ -1,0 +1,100 @@
+---
+# Copy to vars/vars.yml (gitignored) and adjust.
+local_user: tharpem
+local_home: /home/{{ local_user }}
+
+# Twingate accounts for the `twingate work|personal` launcher (email or email:network)
+twingate_accounts:
+  work: you@work.example
+  personal: yournetwork
+
+# Home CA trusted by the host, Qt Flatpaks and (manually, see README) Flatpak Chrome
+custom_ca_cert: axis.lan-ca.crt
+
+# Static CLI tools in ~/.local/bin, pinned. member = path of the binary inside the archive.
+cli_tools:
+  - name: eza
+    version: 0.23.5
+    url: https://github.com/eza-community/eza/releases/download/v0.23.5/eza_x86_64-unknown-linux-musl.tar.gz
+    member: eza
+  - name: rg
+    version: 15.2.0
+    url: https://github.com/BurntSushi/ripgrep/releases/download/15.2.0/ripgrep-15.2.0-x86_64-unknown-linux-musl.tar.gz
+    member: ripgrep-15.2.0-x86_64-unknown-linux-musl/rg
+  - name: bat
+    version: 0.26.1
+    url: https://github.com/sharkdp/bat/releases/download/v0.26.1/bat-v0.26.1-x86_64-unknown-linux-musl.tar.gz
+    member: bat-v0.26.1-x86_64-unknown-linux-musl/bat
+  - name: fzf
+    version: 0.74.5
+    url: https://github.com/junegunn/fzf/releases/download/v0.74.5/fzf-0.74.5-linux_amd64.tar.gz
+    member: fzf
+  - name: zoxide
+    version: 0.10.0
+    url: https://github.com/ajeetdsouza/zoxide/releases/download/v0.10.0/zoxide-0.10.0-x86_64-unknown-linux-musl.tar.gz
+    member: zoxide
+  - name: fd
+    version: 10.5.0
+    url: https://github.com/sharkdp/fd/releases/download/v10.5.0/fd-v10.5.0-x86_64-unknown-linux-musl.tar.gz
+    member: fd-v10.5.0-x86_64-unknown-linux-musl/fd
+  - name: btop
+    version: 1.4.7
+    url: https://github.com/aristocratos/btop/releases/download/v1.4.7/btop-x86_64-unknown-linux-musl.tar.gz
+    member: btop/bin/btop
+  - name: lazygit
+    version: 0.66.2
+    url: https://github.com/jesseduffield/lazygit/releases/download/v0.66.2/lazygit_0.66.2_linux_x86_64.tar.gz
+    member: lazygit
+  - name: delta
+    version: 0.20.1
+    url: https://github.com/dandavison/delta/releases/download/0.20.1/delta-0.20.1-x86_64-unknown-linux-musl.tar.gz
+    member: delta-0.20.1-x86_64-unknown-linux-musl/delta
+
+nerd_fonts_version: v3.5.1
+nerd_fonts: [JetBrainsMono, FiraCode, Hack, Meslo, CascadiaCode]
+
+flatpak_apps:
+  - com.google.Chrome
+  - com.mattjakeman.ExtensionManager
+  - com.nextcloud.desktopclient.nextcloud
+  - com.slack.Slack
+  - com.usebottles.bottles
+  - net.nokyan.Resources
+  - org.gnome.Boxes
+  - org.onlyoffice.desktopeditors
+  - us.zoom.Zoom
+
+# Installed from extensions.gnome.org when missing (twingate-panel is handled separately)
+gnome_extensions_ego:
+  - appindicatorsupport@rgcjonas.gmail.com
+  - just-perfection-desktop@just-perfection
+
+gnome_enabled_extensions:
+  - vso@vanillaos.org
+  - auto-move-windows@gnome-shell-extensions.gcampax.github.com
+  - just-perfection-desktop@just-perfection
+  - user-theme@gnome-shell-extensions.gcampax.github.com
+  - system-monitor@gnome-shell-extensions.gcampax.github.com
+  - appindicatorsupport@rgcjonas.gmail.com
+  - twingate-panel@mtharpe
+
+# Dev checkout to symlink as the extension; if it doesn't exist, main is downloaded instead
+twingate_panel_checkout: "{{ local_home }}/src/github/mtharpe/twingate-panel"
+twingate_panel_tarball: https://codeload.github.com/mtharpe/twingate-panel/tar.gz/refs/heads/main
+
+gnome_custom_keybindings:
+  - name: Terminal
+    command: ptyxis --new-window
+    binding: <Super>t
+  - name: Bitwarden
+    command: /usr/share/apx/distrobox/distrobox-enter -n apx-bitwarden -- /opt/Bitwarden/bitwarden
+    binding: <Control><Shift>space
+
+# apx subsystems: name -> custom home
+apx_subsystems:
+  - name: claude-work
+    home: "{{ local_home }}/.apx-homes/claude-work"
+  - name: claude-personal
+    home: "{{ local_home }}/.apx-homes/claude-personal"
+  - name: bitwarden
+    home: "{{ local_home }}/.apx-homes/bitwarden"

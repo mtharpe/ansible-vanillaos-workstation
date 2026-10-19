@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Nextcloud Desktop
+Comment=Start Nextcloud sync client on login
+Exec=/usr/bin/flatpak run --branch=stable --arch=x86_64 --command=nextcloud com.nextcloud.desktopclient.nextcloud --background
+Icon=com.nextcloud.desktopclient.nextcloud
+Terminal=false
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Delay=5
+X-Flatpak=com.nextcloud.desktopclient.nextcloud

@@ -1,0 +1,2 @@
+---
+cli_tools_cache: "{{ local_home }}/.cache/cli-tools"

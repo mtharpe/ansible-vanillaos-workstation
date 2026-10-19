@@ -1,0 +1,47 @@
+---
+# Twingate runs on the host (rootless containers can't make TUN devices or routes). The .deb is
+# unpacked into /usr/local by twingate-host-update, weekly via its timer. The `twingate` shell
+# function and the GNOME panel do root actions through the twingate-switch helper, which polkit
+# lets the desktop user pkexec without a password. Both are root-owned so the rule can't be
+# abused by editing them.
+- name: Install the Twingate updater and switch helper
+  ansible.builtin.copy:
+    src: twingate/{{ item.src }}
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - { src: twingate-host-update, dest: /usr/local/sbin/twingate-host-update }
+    - { src: twingate-switch, dest: /usr/local/libexec/twingate-switch }
+
+- name: Let the desktop user run the switch helper without a password
+  ansible.builtin.template:
+    src: 49-twingate-switch.rules.j2
+    dest: /etc/polkit-1/rules.d/49-twingate-switch.rules
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Install the weekly updater units
+  ansible.builtin.copy:
+    src: twingate/{{ item }}
+    dest: /etc/systemd/system/{{ item }}
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - twingate-host-update.service
+    - twingate-host-update.timer
+
+- name: Install or update the Twingate client
+  ansible.builtin.command: /usr/local/sbin/twingate-host-update
+  register: system_twingate_update
+  changed_when: "'installed' in system_twingate_update.stdout and 'already' not in system_twingate_update.stdout"
+
+- name: Enable the weekly updater
+  ansible.builtin.systemd_service:
+    name: twingate-host-update.timer
+    enabled: true
+    state: started
+    daemon_reload: true

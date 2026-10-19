@@ -1,0 +1,31 @@
+#!/bin/sh
+# Switch power-profiles-daemon profile on AC changes:
+# plugged in -> performance, on battery -> balanced.
+# Only acts on transitions, so a manual profile change sticks until the next plug/unplug.
+
+profile_for_state() {
+    if busctl get-property org.freedesktop.UPower /org/freedesktop/UPower \
+        org.freedesktop.UPower OnBattery | grep -q true; then
+        echo balanced
+    else
+        echo performance
+    fi
+}
+
+last=""
+apply() {
+    want=$(profile_for_state)
+    [ "$want" = "$last" ] && return
+    last=$want
+    if [ "$(powerprofilesctl get)" != "$want" ]; then
+        powerprofilesctl set "$want" && echo "set profile: $want"
+    fi
+}
+
+apply
+gdbus monitor --system --dest org.freedesktop.UPower --object-path /org/freedesktop/UPower |
+while read -r line; do
+    case $line in
+        *OnBattery*) apply ;;
+    esac
+done

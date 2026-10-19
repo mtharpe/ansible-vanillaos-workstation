@@ -1,0 +1,9 @@
+// Let {{ local_user }} connect/disconnect Twingate without a password prompt: only via pkexec of the
+// root-owned launcher helper, and only from an active local session.
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.policykit.exec" &&
+        action.lookup("program") == "/usr/local/libexec/twingate-switch" &&
+        subject.user == "{{ local_user }}" && subject.local && subject.active) {
+        return polkit.Result.YES;
+    }
+});

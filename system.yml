@@ -1,0 +1,18 @@
+---
+# Root-level host setup. run.sh runs this once under pkexec (the host has no sudo).
+# /usr is read-only (ABRoot), so everything lands in /etc, /var or /usr/local (= /var/usrlocal).
+- name: Host system setup
+  hosts: workstation
+  gather_facts: false
+
+  vars_files:
+    - vars/vars.yml
+
+  pre_tasks:
+    - name: Require root (run through ./run.sh system)
+      ansible.builtin.assert:
+        that: lookup('ansible.builtin.pipe', 'id -u') == '0'
+        fail_msg: system.yml must run as root; use ./run.sh system
+
+  roles:
+    - system
