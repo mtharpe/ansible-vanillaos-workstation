@@ -5,8 +5,8 @@ local_home: /home/{{ local_user }}
 
 # Twingate accounts for the `twingate work|personal` launcher (email or email:network)
 twingate_accounts:
-  work: you@work.example
-  personal: yournetwork
+  work: you@work.example:worknetwork      # email:network, as `twingate account list` shows it
+  personal: you@example.com:yournetwork  # the account must have signed in once (`twingate add`)
 
 # Home CA trusted by the host, Qt Flatpaks and (manually, see README) Flatpak Chrome
 custom_ca_cert: axis.lan-ca.crt
