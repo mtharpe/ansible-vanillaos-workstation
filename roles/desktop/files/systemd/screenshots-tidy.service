@@ -1,0 +1,6 @@
+[Unit]
+Description=Move portal screenshots into ~/Pictures/Screenshots
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/screenshots-tidy

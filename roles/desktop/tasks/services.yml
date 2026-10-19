@@ -9,6 +9,8 @@
     - power-profile-auto.service
     - update-hatter-icons.service
     - update-hatter-icons.timer
+    - screenshots-tidy.path
+    - screenshots-tidy.service
 
 # The Twingate notifier (unit installed by the system role) opens the sign-in page via
 # $BROWSER; point it at gio since the host has no xdg-open
@@ -28,3 +30,4 @@
   loop:
     - power-profile-auto.service
     - update-hatter-icons.timer
+    - screenshots-tidy.path

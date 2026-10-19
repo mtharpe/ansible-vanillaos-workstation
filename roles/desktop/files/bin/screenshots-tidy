@@ -1,0 +1,22 @@
+#!/bin/sh
+# Apps that take screenshots through the desktop portal (Slack, Chrome, ...) get them saved
+# as ~/Pictures/Screenshot.png, Screenshot-1.png, ... Move those into ~/Pictures/Screenshots,
+# named like GNOME's own. Run by screenshots-tidy.path.
+pics="$HOME/Pictures"
+dest="$pics/Screenshots"
+
+# Give the app that asked for the screenshot time to read it first
+sleep 30
+
+mkdir -p "$dest"
+for f in "$pics"/Screenshot*.png; do
+    [ -f "$f" ] || continue
+    stamp=$(date -r "$f" '+%Y-%m-%d %H-%M-%S')
+    target="$dest/Screenshot From $stamp.png"
+    n=1
+    while [ -e "$target" ]; do
+        target="$dest/Screenshot From $stamp-$n.png"
+        n=$((n + 1))
+    done
+    mv -n "$f" "$target"
+done
