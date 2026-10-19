@@ -21,3 +21,7 @@ all:
         apx_bitwarden:
           hosts:
             apx-bitwarden:
+        # Created by Vanilla OS itself; holds the terminal's tmux
+        apx_vso:
+          hosts:
+            apx-vso-native:

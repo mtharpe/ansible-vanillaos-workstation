@@ -1,0 +1,46 @@
+---
+# apx-vso-native: the Vanilla OS-provided Debian container (made by the OS, not by apx_host).
+# It shares the host $HOME and is where the terminal's tmux runs (see the tmux() wrapper in
+# .bashrc). apx_container has already done the apt cache fix and python3-apt here.
+
+- name: Install packages
+  ansible.builtin.apt:
+    name: "{{ vso_native_packages }}"
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+  when: apx_python3_apt.stdout == 'installed' or not ansible_check_mode
+
+# Claude Desktop runs from the claude-work/claude-personal subsystems; an early copy here was
+# dropped
+- name: Remove Claude Desktop
+  ansible.builtin.apt:
+    name: claude-desktop
+    state: absent
+    purge: true
+  become: true
+  when: apx_python3_apt.stdout == 'installed' or not ansible_check_mode
+
+- name: Remove the Claude Desktop apt source
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/apt/sources.list.d/claude-desktop.list
+    - /usr/share/keyrings/claude-desktop-archive-keyring.asc
+  become: true
+
+- name: Install the tmux config
+  ansible.builtin.copy:
+    src: tmux.conf
+    dest: "{{ local_home }}/.tmux.conf"
+    mode: "0644"
+    backup: true
+
+# TPM loads tmux-sensible itself, but only once it's installed (prefix + I); clone both so a
+# fresh machine starts out configured
+- name: Install tmux plugins
+  ansible.builtin.command: git clone --depth 1 https://github.com/tmux-plugins/{{ item }} {{ local_home }}/.tmux/plugins/{{ item }}
+  args:
+    creates: "{{ local_home }}/.tmux/plugins/{{ item }}"
+  loop: [tpm, tmux-sensible]

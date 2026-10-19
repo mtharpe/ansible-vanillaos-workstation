@@ -1,4 +1,4 @@
-# Readline settings (bash and ble.sh). Loaded in apx containers via INPUTRC set in ~/.bashrc
+# Readline settings for bash. Loaded in apx containers via INPUTRC set in ~/.bashrc
 $include /etc/inputrc
 
 # Tab: case-insensitive, treat - and _ alike, list matches on first press
