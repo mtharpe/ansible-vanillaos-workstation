@@ -1,5 +1,5 @@
 #!/bin/sh
-# Open the newest screenshot in ~/Pictures/Screenshots in Gradia (bound to Ctrl+Print).
+# Open the newest screenshot in ~/Pictures/Screenshots in Gradia (bound to Alt+5).
 # Screenshots themselves come from GNOME's built-in tool (Print), which saves there and
 # copies to the clipboard.
 f=$(ls -t "$HOME"/Pictures/Screenshots/*.png 2>/dev/null | head -n 1)
