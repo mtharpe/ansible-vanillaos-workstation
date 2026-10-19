@@ -11,6 +11,11 @@ desktop_dconf:
   /org/gnome/shell/enabled-extensions: "[{% for e in gnome_enabled_extensions %}'{{ e }}'{{ ', ' if not loop.last }}{% endfor %}]"
   /org/gnome/desktop/interface/icon-theme: "'Hatter-Blue'"
   /org/gnome/desktop/interface/accent-color: "'blue'"
+  # Screenshots (saved to ~/Pictures/Screenshots and the clipboard). Alt+3: focused window
+  # right away. Alt+4: the screenshot UI, which opens in the mode used last (Selection unless
+  # it was switched there)
+  /org/gnome/shell/keybindings/screenshot-window: "['<Alt>Print', '<Alt>3']"
+  /org/gnome/shell/keybindings/show-screenshot-ui: "['Print', '<Alt>4']"
   # Without xwayland-native-scaling: with it, every X11 app showed a double-size pointer
   /org/gnome/mutter/experimental-features: "['scale-monitor-framebuffer']"
   /org/gnome/Ptyxis/use-system-font: "false"

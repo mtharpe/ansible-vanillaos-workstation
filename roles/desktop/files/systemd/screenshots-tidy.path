@@ -1,0 +1,8 @@
+[Unit]
+Description=Watch ~/Pictures for portal screenshots
+
+[Path]
+PathExistsGlob=%h/Pictures/Screenshot*.png
+
+[Install]
+WantedBy=default.target

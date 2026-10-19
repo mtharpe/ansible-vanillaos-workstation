@@ -12,6 +12,8 @@
     - zed-launcher
     - power-profile-auto
     - update-hatter-icons
+    - screenshot-edit
+    - screenshots-tidy
 
 - name: Install menu entries
   ansible.builtin.copy:

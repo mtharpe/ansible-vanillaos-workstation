@@ -13,3 +13,14 @@
     src: flatpak-overrides/
     dest: "{{ local_home }}/.local/share/flatpak/overrides/"
     mode: "0644"
+
+# Gradia (screenshot editor): its recent-screenshots picker looks in ~/Pictures/Screenshots.
+# Sandboxed apps keep GSettings in a keyfile under ~/.var/app.
+- name: Point Gradia at the screenshots folder
+  community.general.ini_file:
+    path: "{{ local_home }}/.var/app/be.alexandervanhee.gradia/config/glib-2.0/settings/keyfile"
+    section: be/alexandervanhee/gradia
+    option: screenshot-folder
+    value: "'{{ local_home }}/Pictures/Screenshots'"
+    no_extra_spaces: true
+    mode: "0644"
