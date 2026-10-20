@@ -44,3 +44,34 @@
   args:
     creates: "{{ local_home }}/.tmux/plugins/{{ item }}"
   loop: [tpm, tmux-sensible]
+
+# Standalone web apps (Gmail, Calendar, ...) from the electron-apps repo. They run on the
+# host from ~/.local (this container shares the host $HOME), so they're built here.
+- name: Install the electron-apps build dependencies
+  ansible.builtin.apt:
+    name: [nodejs, npm, librsvg2-bin, python3-pil, libnotify-bin]
+  become: true
+  when: apx_python3_apt.stdout == 'installed' or not ansible_check_mode
+
+- name: Clone electron-apps
+  ansible.builtin.command: git clone {{ electron_apps_repo }} {{ electron_apps_checkout }}
+  args:
+    creates: "{{ electron_apps_checkout }}/build-linux.sh"
+
+# build-linux.sh builds and installs only the named apps; each one is skipped once installed
+# (update by running build-linux.sh by hand). Electron comes from a git+ssh dependency:
+# npm 12 refuses git dependencies unless allowed, and on a fresh machine there's no SSH key
+# yet (rbw is set up afterwards), so fetch it from GitHub over HTTPS.
+- name: Build and install missing web apps
+  ansible.builtin.command: ./build-linux.sh {{ item }}
+  args:
+    chdir: "{{ electron_apps_checkout }}"
+    creates: "{{ local_home }}/.local/lib/{{ item }}/{{ item }}"
+  environment:
+    PREFIX: "{{ local_home }}/.local"
+    INSTALL_PREREQS: "0"
+    npm_config_allow_git: all
+    GIT_CONFIG_COUNT: "1"
+    GIT_CONFIG_KEY_0: url.https://github.com/.insteadOf
+    GIT_CONFIG_VALUE_0: ssh://git@github.com/
+  loop: "{{ electron_apps }}"

@@ -105,8 +105,7 @@ gnome_custom_keybindings:
     command: "{{ local_home }}/.local/bin/displays-reset --hard"
     binding: <Super><Alt><Shift>d
 
-# Standalone web apps from github.com/mtharpe/electron-apps, built in this subsystem
-electron_apps_build_host: apx-claude-personal
+# Standalone web apps from github.com/mtharpe/electron-apps, built in apx-vso-native
 electron_apps_repo: https://github.com/mtharpe/electron-apps.git
 electron_apps_checkout: "{{ local_home }}/src/github/mtharpe/electron-apps"
 electron_apps: [gmail, google-calendar, google-tasks, google-keep, google-messages, messenger]
