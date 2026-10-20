@@ -48,12 +48,8 @@
   loop:
     - rbw-quick-access.desktop
     - com.nextcloud.desktopclient.nextcloud.desktop
-
-# The Bitwarden desktop app used to start hidden for its SSH agent; rbw's agent does that now
-- name: Remove the old Bitwarden autostart entry
-  ansible.builtin.file:
-    path: "{{ local_home }}/.config/autostart/bitwarden-apx.desktop"
-    state: absent
+    # Bitwarden desktop, hidden to tray: the browser extension's biometric unlock needs it running
+    - bitwarden-apx.desktop
 
 # One Zed config shared by every apx profile: each container's ~/.config/zed links here
 # (apx_container role). Seeded only, since Zed rewrites settings.json from its UI.

@@ -14,6 +14,26 @@
     dest: "{{ local_home }}/.local/share/flatpak/overrides/"
     mode: "0644"
 
+# Bitwarden extension <-> desktop app (biometric unlock) in every Chrome profile: Chrome
+# reads native messaging hosts per user data dir, so one manifest covers all profiles.
+- name: Create Chrome's native messaging host dir
+  ansible.builtin.file:
+    path: "{{ desktop_chrome_nm_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Install the Bitwarden native messaging host
+  ansible.builtin.copy:
+    src: bitwarden/bitwarden-native-messaging
+    dest: "{{ desktop_chrome_nm_dir }}/bitwarden-native-messaging"
+    mode: "0755"
+
+- name: Register the Bitwarden native messaging host
+  ansible.builtin.template:
+    src: com.8bit.bitwarden.json.j2
+    dest: "{{ desktop_chrome_nm_dir }}/com.8bit.bitwarden.json"
+    mode: "0644"
+
 # Gradia (screenshot editor): its recent-screenshots picker looks in ~/Pictures/Screenshots.
 # Sandboxed apps keep GSettings in a keyfile under ~/.var/app.
 - name: Point Gradia at the screenshots folder

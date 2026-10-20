@@ -7,3 +7,6 @@
 
 - name: Twingate client
   ansible.builtin.import_tasks: twingate.yml
+
+- name: Bitwarden unlock with system authentication
+  ansible.builtin.import_tasks: bitwarden.yml
