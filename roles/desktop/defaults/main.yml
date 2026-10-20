@@ -2,6 +2,17 @@
 desktop_extensions_dir: "{{ local_home }}/.local/share/gnome-shell/extensions"
 desktop_keybinding_path: /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings
 
+# Busy cursor names (incl. the legacy X11 hash names) that Adwaita-NoBusy maps to the arrow
+desktop_busy_cursors:
+  - wait
+  - watch
+  - progress
+  - left_ptr_watch
+  - half-busy
+  - 08e8e1c95fe2fc01f976f1e063a24ccd
+  - 3ecb610c1bf2410f44200f48c40d3599
+  - 00000000000000020006000e7e9ffc3f
+
 desktop_url_handlers:
   x-scheme-handler/bitwarden: bitwarden-apx.desktop
   x-scheme-handler/claude: claude-desktop-launcher.desktop
@@ -11,6 +22,8 @@ desktop_dconf:
   /org/gnome/shell/enabled-extensions: "[{% for e in gnome_enabled_extensions %}'{{ e }}'{{ ', ' if not loop.last }}{% endfor %}]"
   /org/gnome/desktop/interface/icon-theme: "'Hatter-Blue'"
   /org/gnome/desktop/interface/accent-color: "'blue'"
+  # No spinner cursor while apps load (see appearance.yml)
+  /org/gnome/desktop/interface/cursor-theme: "'Adwaita-NoBusy'"
   # Screenshots (saved to ~/Pictures/Screenshots and the clipboard). Shift+Alt+3: focused
   # window right away. Shift+Alt+4: the screenshot UI, which opens in the mode used last (Selection unless
   # it was switched there)
