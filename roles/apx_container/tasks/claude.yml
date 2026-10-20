@@ -81,31 +81,3 @@
   loop_control:
     label: "{{ item.src | basename }}"
   run_once: true
-
-# Standalone web apps (Gmail, Calendar, ...) from the electron-apps repo. They run on the
-# host from ~/.local/lib; Node only lives here, so they're built in one Claude subsystem.
-- name: Build the electron web apps
-  when: inventory_hostname == electron_apps_build_host
-  block:
-    - name: Install the electron-apps build dependencies
-      ansible.builtin.apt:
-        name: [git, librsvg2-bin, python3-pil, libnotify-bin]
-      become: true
-      when: apx_python3_apt.stdout == 'installed' or not ansible_check_mode
-
-    - name: Clone electron-apps
-      ansible.builtin.command: git clone {{ electron_apps_repo }} {{ electron_apps_checkout }}
-      args:
-        creates: "{{ electron_apps_checkout }}/build-linux.sh"
-
-    # build-linux.sh builds and installs only the named apps; each one is skipped once
-    # installed (update by running build-linux.sh by hand)
-    - name: Build and install missing apps
-      ansible.builtin.command: ./build-linux.sh {{ item }}
-      args:
-        chdir: "{{ electron_apps_checkout }}"
-        creates: "{{ local_home }}/.local/lib/{{ item }}/{{ item }}"
-      environment:
-        PREFIX: "{{ local_home }}/.local"
-        INSTALL_PREREQS: "0"
-      loop: "{{ electron_apps }}"
