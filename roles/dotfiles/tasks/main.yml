@@ -22,7 +22,7 @@
     - { src: inputrc, dest: .inputrc }
     - { src: gitconfig, dest: .gitconfig }
     - { src: lazygit.yml, dest: .config/lazygit/config.yml }
-    # IdentityAgent = Bitwarden's SSH agent socket in the bitwarden subsystem
+    # IdentityAgent = rbw's SSH agent socket (rbw runs in the bitwarden subsystem)
     - { src: ssh_config, dest: .ssh/config, mode: "0600" }
   loop_control:
     label: "{{ item.dest }}"
