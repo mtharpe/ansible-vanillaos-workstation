@@ -1,0 +1,150 @@
+#!/usr/bin/env python3
+"""Use the Bluetooth headset mic only while a call app (Zoom, Slack, Meet, ...) is recording.
+
+Outside a meeting the default mic is the laptop mic, so a connected Bluetooth
+headset stays in its high-quality (A2DP) profile. When a call app opens a mic stream,
+the default mic becomes whichever Bluetooth headset the default speaker is,
+and WirePlumber's autoswitch moves that headset to its headset (HFP) profile.
+When the app closes the stream, the default goes back to the laptop mic.
+
+The default is only changed on transitions (meeting start/end, a Bluetooth
+headset connecting or disconnecting), so picking a mic by hand still works.
+
+Environment:
+  LAPTOP_MIC    node.name of the laptop mic (default: built-in digital mic)
+  MEETING_APPS  regex that must fully match the stream's application name/binary
+"""
+import json
+import os
+import re
+import select
+import subprocess
+import sys
+import time
+
+LAPTOP_MIC = os.environ.get(
+    "LAPTOP_MIC",
+    "alsa_input.pci-0000_00_1f.3-platform-skl_hda_dsp_generic.HiFi__Mic1__source",
+)
+# Exact (whole-value, case-insensitive) matches against the application name
+# and process binary of the recording stream and its client. Generic names
+# like "Chromium input" never match on their own. Browser-based meetings
+# (Meet, FreeConferenceCall, BlueJeans, GoTo, Zoho, Teams on the web) are
+# covered by Chrome; Chrome can't say which tab is recording, so any site
+# using the mic in Chrome counts.
+DEFAULT_MEETING_APPS = [
+    "zoom", "ZOOM VoiceEngine",          # Zoom
+    "slack",                             # Slack (huddles)
+    "messenger",                         # Messenger desktop wrapper
+    "chrome", "Google Chrome input",     # Google Chrome (Meet and other web meetings)
+    "discord",                           # Discord
+    "CiscoCollabHost",                   # Webex
+    "teams-for-linux",                   # Microsoft Teams
+    "jitsi-meet",                        # Jitsi Meet desktop
+    "signal-desktop",                    # Signal
+    "telegram-desktop",                  # Telegram
+    "element-desktop",                   # Element (Matrix)
+    "mumble",                            # Mumble
+    "ts3client_linux_amd64",             # TeamSpeak 3
+]
+MEETING_APPS = re.compile(
+    os.environ.get("MEETING_APPS", "|".join(map(re.escape, DEFAULT_MEETING_APPS))),
+    re.IGNORECASE,
+)
+DEBOUNCE = 0.5
+POLL = 15
+
+
+def log(msg):
+    print(msg, flush=True)
+
+
+def snapshot():
+    """Return (in_meeting, bluetooth sources, laptop mic id, mic for the default speaker)."""
+    dump = json.loads(subprocess.run(["pw-dump"], capture_output=True, text=True, check=True).stdout)
+    nodes = [o for o in dump if o.get("type") == "PipeWire:Interface:Node"]
+
+    def props(o):
+        return (o.get("info") or {}).get("props") or {}
+
+    # Electron apps all name their stream "Chromium input", so also check the
+    # owning client's binary (e.g. "messenger").
+    clients = {o["id"]: props(o) for o in dump if o.get("type") == "PipeWire:Interface:Client"}
+
+    def is_meeting_app(p):
+        c = clients.get(p.get("client.id"), {})
+        keys = ("application.name", "application.process.binary")
+        return any(MEETING_APPS.fullmatch(str(d.get(k, ""))) for d in (p, c) for k in keys)
+
+    in_meeting = any(
+        props(o).get("media.class") == "Stream/Input/Audio"
+        and not props(o).get("stream.capture.sink")
+        and is_meeting_app(props(o))
+        for o in nodes
+    )
+
+    sources = [props(o) for o in nodes if props(o).get("media.class") == "Audio/Source"]
+    bt_sources = {p["node.name"]: p for p in sources if p.get("node.name", "").startswith("bluez_input.")}
+    laptop = next((p["object.id"] for p in sources if p.get("node.name") == LAPTOP_MIC), None)
+
+    default_sink = None
+    for o in dump:
+        if o.get("type") == "PipeWire:Interface:Metadata" and (o.get("props") or {}).get("metadata.name") == "default":
+            for m in o.get("metadata") or []:
+                if m.get("key") == "default.audio.sink":
+                    default_sink = (m.get("value") or {}).get("name")
+
+    # The headset's mic and speaker nodes share the same Bluetooth device id.
+    bt_mic = None
+    if default_sink and default_sink.startswith("bluez_output."):
+        sink = next((props(o) for o in nodes if props(o).get("node.name") == default_sink), None)
+        if sink:
+            bt_mic = next(
+                (p["object.id"] for p in bt_sources.values() if p.get("device.id") == sink.get("device.id")),
+                None,
+            )
+
+    return in_meeting, set(bt_sources), laptop, bt_mic
+
+
+def set_default(node_id, why):
+    subprocess.run(["wpctl", "set-default", str(node_id)], check=False)
+    log(f"default mic -> {node_id} ({why})")
+
+
+def main():
+    prev = None  # (in_meeting, bt_sources)
+    mon = subprocess.Popen(["pw-mon", "-N", "-o", "-a"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    dirty_at = time.monotonic()
+    last_check = 0.0
+    while True:
+        ready, _, _ = select.select([mon.stdout], [], [], DEBOUNCE)
+        if ready:
+            if not mon.stdout.readline():
+                log("pw-mon exited")
+                return 1
+            dirty_at = time.monotonic()
+            continue
+        now = time.monotonic()
+        if dirty_at is None and now - last_check < POLL:
+            continue
+        dirty_at, last_check = None, now
+        try:
+            in_meeting, bt_sources, laptop, bt_mic = snapshot()
+        except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
+            log(f"pw-dump failed: {e}")
+            continue
+        state = (in_meeting, bt_sources)
+        if state == prev:
+            continue
+        prev = state
+        if in_meeting and bt_mic is not None:
+            set_default(bt_mic, "meeting started, using Bluetooth headset")
+        elif laptop is not None:
+            set_default(laptop, "in meeting, no Bluetooth headset" if in_meeting else "not in a meeting")
+        else:
+            log(f"laptop mic {LAPTOP_MIC} not found")
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,12 @@
+[Unit]
+Description=Use the Bluetooth headset mic only while a call app is recording
+After=wireplumber.service
+BindsTo=wireplumber.service
+
+[Service]
+ExecStart=%h/.local/bin/zoom-bt-mic
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=wireplumber.service
