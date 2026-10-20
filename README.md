@@ -36,7 +36,8 @@ cp vars/vars.example.yml vars/vars.yml   # gitignored; fill in Twingate account 
    ```
    (Private repo: sign in first with `gh auth login`, or clone with a token.)
 3. **Fill in the vars**: `cp vars/vars.example.yml vars/vars.yml` and set the real values
-   (Twingate account ids, etc.).
+   (Twingate account ids, etc.). Save the home CA certificate from Bitwarden as
+   `vars/axis.lan-ca.crt` (gitignored; the CA step is skipped without it).
 4. **Run it**: `./run.sh`. It asks for your password once (pkexec) for the root play, then runs
    the user and container plays. The containers play creates/configures the apx subsystems,
    builds the Gmail/Calendar/... web apps (several minutes the first time) and clones the
@@ -49,7 +50,8 @@ cp vars/vars.example.yml vars/vars.yml   # gitignored; fill in Twingate account 
    `rbw register` asks for the personal API key (web vault: Settings → Security → Keys → View
    API key); Bitwarden rejects rbw's plain login as a new device. The master password typed
    at the first unlock is saved in the GNOME keyring, so later unlocks (including after a
-   reboot) need no typing. SSH and git signing work once rbw is unlocked.
+   reboot) need no typing. SSH and git signing work once rbw is unlocked. Then re-run `./run.sh user`: it reads the
+   git signing key from rbw's agent, which wasn't available on the first run.
 7. **Sign in** to everything else listed under "Not automated" below.
 8. **Check**: `./run.sh --check --diff` should report no changes.
 
@@ -59,7 +61,7 @@ cp vars/vars.example.yml vars/vars.yml   # gitignored; fill in Twingate account 
 |---|---|
 | `system.yml` / `system` | Home CA (`axis.lan`) in the host trust store and the Qt-Flatpak cert dir; udev rules so plugging in the dock, or the Bluetooth keyboard/mouse, wakes the laptop with the lid closed; Twingate client unpacked into `/usr/local` with a weekly updater timer, the `twingate-switch` root helper, and a polkit rule allowing passwordless pkexec of it |
 | `user.yml` / `cli_tools` | Pinned static binaries in `~/.local/bin`: eza, rg, bat, fzf, zoxide, fd, btop, lazygit, delta |
-| `user.yml` / `dotfiles` | `.bashrc`, `.bash_aliases` (incl. the `twingate`, `git_all`, apt helpers), `.inputrc`, `.gitconfig` (delta), `.ssh/config` (rbw SSH agent), git signing key + `allowed_signers`, lazygit config |
+| `user.yml` / `dotfiles` | `.bashrc`, `.bash_aliases` (incl. the `twingate`, `git_all`, apt helpers), `.inputrc`, `.gitconfig` (delta), `.ssh/config` (rbw SSH agent), git signing key + `allowed_signers` (read from rbw's agent; not stored in the repo), lazygit config |
 | `user.yml` / `desktop` | Work/Personal launchers for Claude Desktop and Zed, Bitwarden menu entry, `claude://` and `bitwarden://` handlers, autostart (Bitwarden quick access hidden, which keeps rbw's SSH agent up; Nextcloud), SSH only through rbw's agent (session `SSH_AUTH_SOCK` via environment.d; GNOME's and OpenSSH's agents masked), `power-profile-auto` service (AC: performance, battery: balanced), Hatter icons + weekly updater, sleep after 15 idle minutes on AC too (waking re-lights the dock monitors), screenshots (GNOME's Print tool, screenshot shortcuts Shift+Alt+3 (window) / 4 (screenshot UI) / 5 (edit last in Gradia), no "Screenshot captured" notifications (local `quiet-screenshots` extension), portal screenshots moved into `~/Pictures/Screenshots`), Nerd Fonts, Flatpak apps + overrides, Ptyxis terminal (opens tmux in `apx-vso-native`), GNOME extensions/settings/shortcuts (incl. `displays-reset` on Super+Alt+D / Super+Alt+Shift+D for dock monitors that stay dark), `zoom-bt-mic` user service (laptop mic is the default; while a call app such as Zoom, Slack, Messenger, Chrome/Meet, Discord, Webex or Teams records, the default mic becomes the connected Bluetooth headset, so headsets stay in high-quality A2DP outside calls), twingate-panel, Twingate account ids, shared Zed config |
 | `user.yml` / `apx_host` | Creates the `claude-work`, `claude-personal` and `bitwarden` subsystems |
 | `containers.yml` / `apx_container` | Claude Desktop, claude CLI, Node, Zed and the shared Zed config link in both Claude subsystems; Bitwarden .deb; rbw (also the SSH agent for SSH and git signing), the keyring-backed `pinentry-keyring` and the `rbw-quick-access` fork checkout for Bitwarden quick access (Ctrl+Shift+Space); `xdg-open` → host `gio`; in every subsystem gh (GitHub apt repo, logged in from whichever subsystem already is; git credential helper) and a common package set (git, curl, jq, file, neovim, dig, shellcheck, unzip); apt cache fix |
@@ -69,7 +71,7 @@ cp vars/vars.example.yml vars/vars.yml   # gitignored; fill in Twingate account 
 
 - **Flatpak Chrome's CA**: Chrome uses its own NSS DB. With Chrome closed, from an apx
   container with `libnss3-tools`:
-  `certutil -d sql:$HOME/.var/app/com.google.Chrome/data/pki/nssdb -A -t C,, -n "axis.lan CA" -i roles/system/files/axis.lan-ca.crt`
+  `certutil -d sql:$HOME/.var/app/com.google.Chrome/data/pki/nssdb -A -t C,, -n "axis.lan CA" -i vars/axis.lan-ca.crt`
   (use `/home/<user>/...` explicitly; `~` in a container is its own home).
 - **Sign-ins**: Twingate accounts (`twingate add`), Claude in each profile, Nextcloud, the web
   apps (Gmail etc.), the Bitwarden browser extension; rbw as in step 6 above.

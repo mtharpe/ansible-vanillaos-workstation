@@ -1,0 +1,3 @@
+---
+# Gitignored, next to vars/vars.yml
+system_ca_path: "{{ playbook_dir }}/vars/{{ custom_ca_cert }}"
