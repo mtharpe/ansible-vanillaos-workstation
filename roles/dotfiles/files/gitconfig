@@ -36,3 +36,11 @@
 [merge]
 	# Show the common ancestor in conflicts (delta highlights each side)
 	conflictStyle = zdiff3
+# Written by `gh auth setup-git` (containers play): https fetches log in with gh's token.
+# gh is only installed in the apx containers, so this does nothing on the host.
+[credential "https://github.com"]
+	helper = 
+	helper = !/usr/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+	helper = 
+	helper = !/usr/bin/gh auth git-credential
