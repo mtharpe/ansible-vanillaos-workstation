@@ -24,3 +24,22 @@
     value: "'{{ local_home }}/Pictures/Screenshots'"
     no_extra_spaces: true
     mode: "0644"
+
+# Gradia 1.14.0 fetches its upload-provider list from upload-providers/1.14.0.json, which
+# 404s on gradia.alexandervanhee.be (2026-10-19), so Preferences offers no providers at all.
+# Picking one only stores these two values, so set Imgur from the 1.13.0 list directly.
+- name: Set Gradia's upload provider (Imgur)
+  community.general.ini_file:
+    path: "{{ local_home }}/.var/app/be.alexandervanhee.gradia/config/glib-2.0/settings/keyfile"
+    section: be/alexandervanhee/gradia
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    no_extra_spaces: true
+    mode: "0644"
+  loop:
+    - option: provider-name
+      value: "'Imgur'"
+    - option: custom-export-command
+      value: !unsafe "\"curl -s -H \\\"Authorization: Client-ID fc2a3faf090d08b\\\" -F \\\"image=@$1\\\" https://api.imgur.com/3/image | tee >(sed -n 's/.*\\\"deletehash\\\":\\\"\\\\([^\\\"]*\\\\)\\\".*/\\\\1/p' | while read h; do echo \\\"[$(date +%F_%T)] $h\\\"; done >> \\\"$XDG_CONFIG_HOME/imgur-delete-hashes.txt\\\") | sed -n 's/.*\\\"link\\\":\\\"\\\\([^\\\"]*\\\\)\\\".*/\\\\1/p' | sed 's/\\\\\\\\//g'\""
+  loop_control:
+    label: "{{ item.option }}"
