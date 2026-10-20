@@ -1,0 +1,5 @@
+#!/bin/sh
+# Bitwarden quick access (fork of rbw-quick-access), run in the apx-bitwarden subsystem where
+# rbw lives. Bound to Ctrl+Shift+Space; a second launch shows the already-running window.
+exec /usr/share/apx/distrobox/distrobox-enter -n apx-bitwarden -- \
+    python3 /home/tharpem/src/github/mtharpe/rbw-quick-access/src/main.py "$@"
