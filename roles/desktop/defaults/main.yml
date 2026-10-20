@@ -13,6 +13,8 @@ desktop_busy_cursors:
   - 3ecb610c1bf2410f44200f48c40d3599
   - 00000000000000020006000e7e9ffc3f
 
+desktop_chrome_nm_dir: "{{ local_home }}/.var/app/com.google.Chrome/config/google-chrome/NativeMessagingHosts"
+
 desktop_url_handlers:
   x-scheme-handler/bitwarden: bitwarden-apx.desktop
   x-scheme-handler/claude: claude-desktop-launcher.desktop
