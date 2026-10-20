@@ -17,6 +17,7 @@
     - rbw-quick-access
     - ssh-keygen-bitwarden
     - displays-reset
+    - bitwarden-desktop
     - zoom-bt-mic
 
 - name: Install menu entries

@@ -1,0 +1,7 @@
+#!/bin/sh
+# Run the Bitwarden desktop app in the apx-bitwarden subsystem. The container has no
+# /run/dbus/system_bus_socket (the host's is under /run/host), and without the system bus
+# Bitwarden can't reach polkit, so it hides "Unlock with system authentication".
+exec /usr/share/apx/distrobox/distrobox-enter -n apx-bitwarden -- \
+    env DBUS_SYSTEM_BUS_ADDRESS=unix:path=/run/host/run/dbus/system_bus_socket \
+    /opt/Bitwarden/bitwarden "$@"
