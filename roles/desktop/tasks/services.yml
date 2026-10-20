@@ -31,3 +31,23 @@
     - power-profile-auto.service
     - update-hatter-icons.timer
     - screenshots-tidy.path
+
+# SSH keys live only in the vault: rbw's agent is the session's SSH_AUTH_SOCK (apps and the
+# apx containers inherit it), and the GNOME (gcr) and OpenSSH agents are masked
+- name: Point the session at rbw's SSH agent
+  ansible.builtin.copy:
+    src: environment.d/90-rbw-ssh-agent.conf
+    dest: "{{ local_home }}/.config/environment.d/90-rbw-ssh-agent.conf"
+    mode: "0644"
+
+- name: Mask the other SSH agents
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    scope: user
+    masked: true
+    state: stopped
+  loop:
+    - gcr-ssh-agent.socket
+    - gcr-ssh-agent.service
+    - ssh-agent.socket
+    - ssh-agent.service
