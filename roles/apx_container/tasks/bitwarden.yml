@@ -46,9 +46,17 @@
 # Ubuntu ships 1.13, so use the upstream static build.
 - name: Install quick access dependencies
   ansible.builtin.apt:
-    name: [python3-pyqt6, python3-pydantic, python3-platformdirs, pinentry-qt, libsecret-tools]
+    name: [git, python3-pyqt6, python3-pydantic, python3-platformdirs, pinentry-qt, libsecret-tools]
   become: true
   when: apx_python3_apt.stdout == 'installed' or not ansible_check_mode
+
+# The launcher runs src/main.py straight from this checkout
+- name: Clone the rbw-quick-access fork
+  ansible.builtin.shell: >-
+    git clone {{ rbw_quick_access_repo }} {{ rbw_quick_access_checkout }} &&
+    git -C {{ rbw_quick_access_checkout }} remote add upstream {{ rbw_quick_access_upstream }}
+  args:
+    creates: "{{ rbw_quick_access_checkout }}/src/main.py"
 
 - name: Remove Ubuntu's older rbw
   ansible.builtin.apt:

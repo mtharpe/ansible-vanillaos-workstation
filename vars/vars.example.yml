@@ -105,7 +105,16 @@ gnome_custom_keybindings:
     command: "{{ local_home }}/.local/bin/displays-reset --hard"
     binding: <Super><Alt><Shift>d
 
+# Standalone web apps from github.com/mtharpe/electron-apps, built in this subsystem
+electron_apps_build_host: apx-claude-personal
+electron_apps_repo: https://github.com/mtharpe/electron-apps.git
+electron_apps_checkout: "{{ local_home }}/src/github/mtharpe/electron-apps"
+electron_apps: [gmail, google-calendar, google-tasks, google-keep, google-messages, messenger]
+
 # rbw (Bitwarden CLI) for quick access, in apx-bitwarden
+rbw_quick_access_repo: https://github.com/mtharpe/rbw-quick-access.git
+rbw_quick_access_upstream: https://git.forgeserv.cloud/oitsjustjose/rbw-quick-access
+rbw_quick_access_checkout: "{{ local_home }}/src/github/mtharpe/rbw-quick-access"
 rbw_version: 1.15.0
 
 # apx subsystems: name -> custom home
