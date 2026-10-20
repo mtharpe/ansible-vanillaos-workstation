@@ -11,14 +11,14 @@ desktop_dconf:
   /org/gnome/shell/enabled-extensions: "[{% for e in gnome_enabled_extensions %}'{{ e }}'{{ ', ' if not loop.last }}{% endfor %}]"
   /org/gnome/desktop/interface/icon-theme: "'Hatter-Blue'"
   /org/gnome/desktop/interface/accent-color: "'blue'"
-  # Screenshots (saved to ~/Pictures/Screenshots and the clipboard). Ctrl+Shift+3: focused
-  # window right away. Ctrl+Shift+4: the screenshot UI, which opens in the mode used last (Selection unless
+  # Screenshots (saved to ~/Pictures/Screenshots and the clipboard). Shift+Alt+3: focused
+  # window right away. Shift+Alt+4: the screenshot UI, which opens in the mode used last (Selection unless
   # it was switched there)
   # Sleep after 15 idle minutes on AC too (the default is never). Docked with the lid closed,
   #  waking from sleep re-lights the dock's MST monitors, which screen blanking alone didn't
   /org/gnome/settings-daemon/plugins/power/sleep-inactive-ac-type: "'suspend'"
-  /org/gnome/shell/keybindings/screenshot-window: "['<Alt>Print', '<Shift><Control>3']"
-  /org/gnome/shell/keybindings/show-screenshot-ui: "['Print', '<Shift><Control>4']"
+  /org/gnome/shell/keybindings/screenshot-window: "['<Alt>Print', '<Shift><Alt>3']"
+  /org/gnome/shell/keybindings/show-screenshot-ui: "['Print', '<Shift><Alt>4']"
   # Without xwayland-native-scaling: with it, every X11 app showed a double-size pointer
   /org/gnome/mutter/experimental-features: "['scale-monitor-framebuffer']"
   /org/gnome/Ptyxis/use-system-font: "false"
