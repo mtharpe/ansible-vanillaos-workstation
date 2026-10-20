@@ -1,0 +1,56 @@
+#!/usr/bin/python3 -I
+"""pinentry for rbw that answers the master password from the GNOME login keyring.
+
+rbw writes SETTITLE/SETPROMPT/SETDESC[/SETERROR] and GETPIN, then closes stdin. For the
+master password at login/unlock this answers from the keyring (unlocked when you log in),
+so there is nothing to type. Everything else (API key, 2FA codes, entries that ask for the
+master password again) goes to pinentry-qt. The first time, or when rbw reports the stored
+password was wrong (SETERROR), pinentry-qt asks and the answer is stored.
+"""
+import subprocess
+import sys
+from urllib.parse import quote, unquote
+
+REAL_PINENTRY = "pinentry-qt"
+KEYRING_ATTRS = ["application", "rbw", "item", "master-password"]
+REPROMPT_DESC = "Accessing this entry requires the master password"
+
+
+def keyring_lookup():
+    res = subprocess.run(["secret-tool", "lookup", *KEYRING_ATTRS], capture_output=True)
+    return res.stdout.decode() if res.returncode == 0 and res.stdout else None
+
+
+def keyring_store(password):
+    subprocess.run(["secret-tool", "store", "--label=rbw master password", *KEYRING_ATTRS],
+                   input=password.encode(), check=False)
+
+
+def keyring_clear():
+    subprocess.run(["secret-tool", "clear", *KEYRING_ATTRS], check=False)
+
+
+def main():
+    lines = sys.stdin.read().splitlines()
+    cmds = {line.split(" ", 1)[0]: line.split(" ", 1)[1] if " " in line else "" for line in lines}
+    is_master = cmds.get("SETPROMPT") == "Master Password" and REPROMPT_DESC not in cmds.get("SETDESC", "")
+
+    if is_master and "SETERROR" in cmds:
+        keyring_clear()
+    elif is_master and (password := keyring_lookup()):
+        sys.stdout.write("OK Pleased to meet you\n" + "OK\n" * (len(lines) - 1))
+        sys.stdout.write(f"D {quote(password, safe='')}\nOK\n")
+        return 0
+
+    real = subprocess.run([REAL_PINENTRY, *sys.argv[1:]], input="\n".join(lines) + "\n",
+                          capture_output=True, text=True)
+    sys.stdout.write(real.stdout)
+    if is_master:
+        for line in real.stdout.splitlines():
+            if line.startswith("D "):
+                keyring_store(unquote(line[2:]))
+    return real.returncode
+
+
+if __name__ == "__main__":
+    sys.exit(main())

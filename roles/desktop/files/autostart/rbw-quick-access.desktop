@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Bitwarden quick access
+Comment=Start Bitwarden quick access hidden on login; it keeps rbw's agent (and SSH agent) running
+Exec=/home/tharpem/.local/bin/rbw-quick-access --background
+Terminal=false
+Type=Application
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Delay=5

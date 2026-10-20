@@ -90,10 +90,16 @@ gnome_custom_keybindings:
     binding: <Super>t
   - name: Bitwarden
     command: /usr/share/apx/distrobox/distrobox-enter -n apx-bitwarden -- /opt/Bitwarden/bitwarden
-    binding: <Control><Shift>space
+    binding: <Control><Alt><Shift>space
   - name: Edit last screenshot
     command: "{{ local_home }}/.local/bin/screenshot-edit"
     binding: <Alt>5
+  - name: Bitwarden quick access
+    command: "{{ local_home }}/.local/bin/rbw-quick-access"
+    binding: <Control><Shift>space
+
+# rbw (Bitwarden CLI) for quick access, in apx-bitwarden
+rbw_version: 1.15.0
 
 # apx subsystems: name -> custom home
 apx_subsystems:
