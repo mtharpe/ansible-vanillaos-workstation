@@ -93,7 +93,7 @@ gnome_custom_keybindings:
     binding: <Control><Alt><Shift>space
   - name: Edit last screenshot
     command: "{{ local_home }}/.local/bin/screenshot-edit"
-    binding: <Alt>5
+    binding: <Shift><Control>5
   - name: Bitwarden quick access
     command: "{{ local_home }}/.local/bin/rbw-quick-access"
     binding: <Control><Shift>space
