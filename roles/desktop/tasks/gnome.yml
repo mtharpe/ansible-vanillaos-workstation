@@ -99,3 +99,25 @@
     key: "{{ desktop_keybinding_path }}"
     value: >-
       [{% for kb in gnome_custom_keybindings %}'{{ desktop_keybinding_path }}/custom{{ loop.index0 }}/'{{ ', ' if not loop.last }}{% endfor %}]
+
+# The terminal's "vso" profile names its container by podman ID, which changes whenever
+# apx-vso-native is recreated (e.g. on a rebuild)
+- name: Look up the apx-vso-native container ID
+  ansible.builtin.command: podman inspect --format {{ '{{.Id}}' }} apx-vso-native
+  register: desktop_vso_id
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Point the terminal profile at apx-vso-native
+  community.general.dconf:
+    key: "{{ item.key }}"
+    value: "{{ item.value }}"
+  loop:
+    - { key: /org/gnome/Ptyxis/profile-uuids, value: "['vso']" }
+    - { key: /org/gnome/Ptyxis/default-profile-uuid, value: "'vso'" }
+    - { key: /org/gnome/Ptyxis/Profiles/vso/label, value: "'VSO Profile'" }
+    - { key: /org/gnome/Ptyxis/Profiles/vso/default-container, value: "'{{ desktop_vso_id.stdout }}'" }
+  loop_control:
+    label: "{{ item.key | basename }}"
+  when: desktop_vso_id.rc == 0

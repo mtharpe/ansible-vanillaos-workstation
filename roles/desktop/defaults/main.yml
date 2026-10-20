@@ -23,6 +23,13 @@ desktop_dconf:
   /org/gnome/mutter/experimental-features: "['scale-monitor-framebuffer']"
   /org/gnome/Ptyxis/use-system-font: "false"
   /org/gnome/Ptyxis/font-name: "'JetBrainsMono Nerd Font Mono 14'"
+  /org/gnome/Ptyxis/audible-bell: "false"
+  /org/gnome/Ptyxis/restore-session: "false"
+  /org/gnome/Ptyxis/scrollbar-policy: "'never'"
+  # Vanilla OS's "vso" profile opens in apx-vso-native; make it start tmux there
+  /org/gnome/Ptyxis/Profiles/vso/custom-command: "'/usr/bin/tmux'"
+  /org/gnome/Ptyxis/Profiles/vso/use-custom-command: "true"
+  /org/gnome/Ptyxis/Profiles/vso/limit-scrollback: "false"
   # The Twingate notifier opens sign-in pages; the panel opening them too gave duplicate tabs
   /org/gnome/shell/extensions/twingate-panel/auth-auto-open: "false"
   /org/gnome/shell/extensions/twingate-panel/privileged-helper: "'/usr/local/libexec/twingate-switch'"

@@ -24,5 +24,8 @@
     - { src: lazygit.yml, dest: .config/lazygit/config.yml }
     # IdentityAgent = Bitwarden's SSH agent socket in the bitwarden subsystem
     - { src: ssh_config, dest: .ssh/config, mode: "0600" }
+    # Git commit signing (gitconfig): the public half of the vault's SSH key, served by rbw
+    - { src: bitwarden-personal.pub, dest: .ssh/bitwarden-personal.pub }
+    - { src: allowed_signers, dest: .ssh/allowed_signers }
   loop_control:
     label: "{{ item.dest }}"
