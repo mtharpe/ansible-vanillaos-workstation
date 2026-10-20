@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Bitwarden
 Comment=Start Bitwarden (apx-bitwarden) hidden to tray on login, for the browser extension's biometric unlock
-Exec=/usr/share/apx/distrobox/distrobox-enter -n apx-bitwarden -- /opt/Bitwarden/bitwarden --autostart
+Exec=/home/tharpem/.local/bin/bitwarden-desktop --autostart
 Terminal=false
 Type=Application
 Icon=bitwarden

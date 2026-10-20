@@ -2,7 +2,7 @@
 Name=Bitwarden
 GenericName=Password Manager
 Comment=Bitwarden desktop (runs in the bitwarden apx subsystem)
-Exec=/usr/share/apx/distrobox/distrobox-enter -n apx-bitwarden -- /opt/Bitwarden/bitwarden %U
+Exec=/home/tharpem/.local/bin/bitwarden-desktop %U
 Terminal=false
 Type=Application
 Icon=bitwarden
