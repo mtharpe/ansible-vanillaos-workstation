@@ -97,6 +97,13 @@ gnome_custom_keybindings:
   - name: Bitwarden quick access
     command: "{{ local_home }}/.local/bin/rbw-quick-access"
     binding: <Control><Shift>space
+  # The dock's MST monitors sometimes stay dark after the screens power off
+  - name: Reset dock monitors
+    command: "{{ local_home }}/.local/bin/displays-reset"
+    binding: <Super><Alt>d
+  - name: Reset dock monitors (hard)
+    command: "{{ local_home }}/.local/bin/displays-reset --hard"
+    binding: <Super><Alt><Shift>d
 
 # rbw (Bitwarden CLI) for quick access, in apx-bitwarden
 rbw_version: 1.15.0
