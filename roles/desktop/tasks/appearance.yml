@@ -20,3 +20,29 @@
   ansible.builtin.command: "{{ local_home }}/.local/bin/update-hatter-icons"
   args:
     creates: "{{ local_home }}/.local/share/icons/Hatter-Blue/index.theme"
+
+# GNOME has no setting to turn off the busy (spinner) cursor. Adwaita-NoBusy is Adwaita
+# with the busy cursors pointing at the normal arrow; selected via desktop_dconf.
+- name: Create the Adwaita-NoBusy cursor theme
+  ansible.builtin.file:
+    path: "{{ local_home }}/.local/share/icons/Adwaita-NoBusy/cursors"
+    state: directory
+    mode: "0755"
+
+- name: Install the Adwaita-NoBusy theme index
+  ansible.builtin.copy:
+    content: |
+      [Icon Theme]
+      Name=Adwaita-NoBusy
+      Comment=Adwaita cursors without the busy spinner
+      Inherits=Adwaita
+    dest: "{{ local_home }}/.local/share/icons/Adwaita-NoBusy/index.theme"
+    mode: "0644"
+
+- name: Point the busy cursors at the arrow
+  ansible.builtin.file:
+    src: /usr/share/icons/Adwaita/cursors/default
+    dest: "{{ local_home }}/.local/share/icons/Adwaita-NoBusy/cursors/{{ item }}"
+    state: link
+    force: true
+  loop: "{{ desktop_busy_cursors }}"
