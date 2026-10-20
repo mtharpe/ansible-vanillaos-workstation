@@ -3,3 +3,5 @@ vars/vars.yml
 .venv/
 *.retry
 __pycache__/
+vars/*.crt
+vars/*.pem
