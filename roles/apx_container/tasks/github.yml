@@ -1,0 +1,48 @@
+---
+# Every subsystem is logged in to GitHub as the same account. gh keeps the token in the host's
+# login keyring, one entry that all subsystems share, plus a per-$HOME hosts.yml naming the
+# account; a subsystem without one gets it from a subsystem that has it. So `gh auth logout`
+# anywhere drops the token everywhere. On a fresh machine none is logged in: log in once in any
+# of them (gh auth login --web) and run the containers play again.
+- name: Check the gh login
+  environment: "{{ apx_gh_env }}"
+  ansible.builtin.command: gh auth status --hostname github.com
+  register: apx_gh_status
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Find a subsystem that is logged in
+  ansible.builtin.set_fact:
+    apx_gh_source: "{{ ansible_play_hosts | select('in', logged_in) | first | default('') }}"
+  vars:
+    logged_in: "{{ ansible_play_hosts | map('extract', hostvars, ['apx_gh_status', 'rc']) | zip(ansible_play_hosts)
+                   | selectattr(0, 'equalto', 0) | map(attribute=1) | list }}"
+  run_once: true
+
+- name: Copy the gh token from {{ apx_gh_source or 'nowhere (none is logged in)' }}
+  environment: "{{ apx_gh_env }}"
+  ansible.builtin.command: gh auth token --hostname github.com
+  register: apx_gh_token
+  delegate_to: "{{ apx_gh_source }}"
+  run_once: true
+  changed_when: false
+  check_mode: false
+  no_log: true
+  when: apx_gh_source != ''
+
+- name: Log in to gh
+  environment: "{{ apx_gh_env }}"
+  ansible.builtin.command: gh auth login --hostname github.com --git-protocol https --with-token
+  args:
+    stdin: "{{ apx_gh_token.stdout }}"
+  no_log: true
+  when: apx_gh_status.rc != 0 and apx_gh_source != ''
+
+# git over HTTPS asks gh for the GitHub password
+
+- name: Set up gh as git's GitHub credential helper
+  environment: "{{ apx_gh_env }}"
+  ansible.builtin.command: gh auth setup-git --hostname github.com
+  changed_when: false
+  when: apx_gh_status.rc == 0 or apx_gh_source != ''

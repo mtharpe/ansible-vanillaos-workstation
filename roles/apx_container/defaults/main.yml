@@ -6,3 +6,9 @@ apx_home: "{{ local_home }}/.apx-homes/{{ inventory_hostname | regex_replace('^a
 # fd, bat, fzf, eza, zoxide, delta, lazygit and btop come from cli_tools (host ~/.local/bin,
 # on every subsystem's PATH)
 apx_common_packages: [gh, git, curl, ca-certificates, jq, file, neovim, bind9-dnsutils, shellcheck, unzip]
+
+# gh reads its token from the login keyring over the session bus, which Ansible's podman exec
+# doesn't pass on. /run/host/run/user is the host's /run/user in every subsystem (apx-vso-native
+# has no /run/user/$UID of its own)
+apx_gh_env:
+  DBUS_SESSION_BUS_ADDRESS: unix:path=/run/host/run/user/1000/bus

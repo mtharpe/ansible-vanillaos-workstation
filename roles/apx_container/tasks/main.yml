@@ -66,3 +66,6 @@
     update_cache: true
   become: true
   when: apx_python3_apt.stdout == 'installed' or not ansible_check_mode
+
+- name: GitHub login
+  ansible.builtin.import_tasks: github.yml
