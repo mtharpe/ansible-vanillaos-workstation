@@ -1,0 +1,84 @@
+#!/usr/bin/python3 -I
+"""Bring the dock's monitors back when they stay dark (MST over USB-C on the xe driver).
+
+  displays-reset         power the displays off and on again (a fresh modeset)
+  displays-reset --hard  also rebuild the layout: each external monitor is dropped in turn
+                         and the saved layout re-applied, so every MST stream is set up again.
+                         Windows on a dropped monitor may move to the other one.
+Bound to a GNOME shortcut; it doesn't work from the lock screen.
+"""
+import sys
+import time
+
+import gi
+
+gi.require_version("Gio", "2.0")
+from gi.repository import Gio, GLib  # noqa: E402
+
+BUS_NAME = "org.gnome.Mutter.DisplayConfig"
+OBJ_PATH = "/org/gnome/Mutter/DisplayConfig"
+POWER_ON, POWER_OFF = 0, 3
+METHOD_TEMPORARY, METHOD_PERSISTENT = 1, 2
+
+proxy = Gio.DBusProxy.new_for_bus_sync(Gio.BusType.SESSION, Gio.DBusProxyFlags.NONE, None,
+                                       BUS_NAME, OBJ_PATH, BUS_NAME, None)
+
+
+def set_power(mode):
+    proxy.call_sync("org.freedesktop.DBus.Properties.Set",
+                    GLib.Variant("(ssv)", (BUS_NAME, "PowerSaveMode", GLib.Variant("i", mode))),
+                    Gio.DBusCallFlags.NONE, -1, None)
+
+
+def current_layout():
+    serial, monitors, logical, _props = proxy.call_sync(
+        "GetCurrentState", None, Gio.DBusCallFlags.NONE, -1, None).unpack()
+    modes = {}
+    builtin = set()
+    for (connector, _vendor, _product, _serial), mode_list, props in monitors:
+        if props.get("is-builtin"):
+            builtin.add(connector)
+        for mode_id, *_rest, mode_props in mode_list:
+            if mode_props.get("is-current"):
+                modes[connector] = mode_id
+    layout = [(x, y, scale, transform, primary, [m[0] for m in mons])
+              for x, y, scale, transform, primary, mons, _p in logical]
+    return serial, layout, modes, builtin
+
+
+def apply(serial, layout, modes, method):
+    lms = [(x, y, scale, transform, primary, [(c, modes[c], {}) for c in conns])
+           for x, y, scale, transform, primary, conns in layout]
+    proxy.call_sync("ApplyMonitorsConfig",
+                    GLib.Variant("(uua(iiduba(ssa{sv}))a{sv})", (serial, method, lms, {})),
+                    Gio.DBusCallFlags.NONE, -1, None)
+
+
+def main():
+    set_power(POWER_OFF)
+    time.sleep(2)
+    set_power(POWER_ON)
+    if "--hard" not in sys.argv:
+        return 0
+
+    time.sleep(3)
+    serial, layout, modes, builtin = current_layout()
+    externals = [lm for lm in layout if not set(lm[5]) & builtin]
+    if len(layout) > 1:
+        for dropped in externals:
+            rest = [lm for lm in layout if lm is not dropped]
+            # Mutter wants the layout to start at 0,0
+            min_x, min_y = min(lm[0] for lm in rest), min(lm[1] for lm in rest)
+            rest = [(x - min_x, y - min_y, *other) for x, y, *other in rest]
+            if not any(lm[4] for lm in rest):
+                x, y, scale, transform, _primary, conns = rest[0]
+                rest[0] = (x, y, scale, transform, True, conns)
+            apply(serial, rest, modes, METHOD_TEMPORARY)
+            time.sleep(2)
+            serial = current_layout()[0]
+    apply(serial, layout, modes, METHOD_PERSISTENT)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

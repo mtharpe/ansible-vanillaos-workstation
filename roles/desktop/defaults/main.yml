@@ -14,6 +14,9 @@ desktop_dconf:
   # Screenshots (saved to ~/Pictures/Screenshots and the clipboard). Alt+3: focused window
   # right away. Alt+4: the screenshot UI, which opens in the mode used last (Selection unless
   # it was switched there)
+  # Sleep after 15 idle minutes on AC too (the default is never). Docked with the lid closed,
+  #  waking from sleep re-lights the dock's MST monitors, which screen blanking alone didn't
+  /org/gnome/settings-daemon/plugins/power/sleep-inactive-ac-type: "'suspend'"
   /org/gnome/shell/keybindings/screenshot-window: "['<Alt>Print', '<Alt>3']"
   /org/gnome/shell/keybindings/show-screenshot-ui: "['Print', '<Alt>4']"
   # Without xwayland-native-scaling: with it, every X11 app showed a double-size pointer

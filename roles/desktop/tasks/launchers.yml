@@ -16,6 +16,7 @@
     - screenshots-tidy
     - rbw-quick-access
     - ssh-keygen-bitwarden
+    - displays-reset
 
 - name: Install menu entries
   ansible.builtin.copy:

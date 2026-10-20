@@ -8,3 +8,21 @@
     group: root
     mode: "0644"
   notify: Reload udev rules
+
+# Docked, the laptop sleeps after 15 idle minutes (desktop role); the Bluetooth keyboard and
+# mouse wake it. Applied right away too, since the rule only fires on add/bind.
+- name: Install the Bluetooth wake udev rule
+  ansible.builtin.copy:
+    src: 91-bluetooth-wake.rules
+    dest: /etc/udev/rules.d/91-bluetooth-wake.rules
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload udev rules
+  register: system_bt_wake_rule
+
+- name: Enable Bluetooth wake now
+  ansible.builtin.shell: >-
+    for d in /sys/bus/pci/drivers/btintel_pcie/0000:*; do echo enabled > "$d/power/wakeup"; done
+  when: system_bt_wake_rule is changed
+  changed_when: true
