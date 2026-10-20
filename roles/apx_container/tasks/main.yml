@@ -16,8 +16,10 @@
   check_mode: false
   failed_when: false
 
+# Update first: the package lists can be empty (fresh image, or wiped), and then apt finds no
+# python3-apt
 - name: Install python3-apt
-  ansible.builtin.command: apt-get install -y python3-apt
+  ansible.builtin.shell: apt-get update && apt-get install -y python3-apt
   when: apx_python3_apt.stdout != 'installed'
   changed_when: true
   become: true
@@ -29,3 +31,38 @@
 - name: Bitwarden setup
   ansible.builtin.import_tasks: bitwarden.yml
   when: "'apx_bitwarden' in group_names"
+
+# gh comes from GitHub's apt repo (the distro one lags far behind)
+- name: Add the GitHub CLI apt key
+  ansible.builtin.get_url:
+    url: https://cli.github.com/packages/githubcli-archive-keyring.gpg
+    dest: /etc/apt/keyrings/githubcli-archive-keyring.gpg
+    mode: "0644"
+  become: true
+
+- name: Add the GitHub CLI apt repo
+  ansible.builtin.copy:
+    content: |
+      Types: deb
+      URIs: https://cli.github.com/packages
+      Suites: stable
+      Components: main
+      Architectures: amd64
+      Signed-By: /etc/apt/keyrings/githubcli-archive-keyring.gpg
+    dest: /etc/apt/sources.list.d/github-cli.sources
+    mode: "0644"
+  become: true
+
+# Left by the earlier hand install in apx-claude-personal
+- name: Remove the old GitHub CLI one-line source
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/github-cli.list
+    state: absent
+  become: true
+
+- name: Install the common packages
+  ansible.builtin.apt:
+    name: "{{ apx_common_packages }}"
+    update_cache: true
+  become: true
+  when: apx_python3_apt.stdout == 'installed' or not ansible_check_mode
