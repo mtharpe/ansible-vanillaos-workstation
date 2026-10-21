@@ -34,6 +34,10 @@ devops_tools_hashicorp: [terraform, terraform-ls, packer, vault, consul, nomad, 
 # pkgs.k8s.io has one repo per minor release; bump to move kubectl along
 devops_tools_kubectl_minor: "1.37"
 
-# HashiCorp has no suite for Vanilla OS's Debian testing ("reunion"); trixie's builds run there
-devops_tools_hashicorp_suites:
-  reunion: trixie
+# gke-gcloud-auth-plugin: kubectl's login for GKE clusters
+devops_tools_cloud_clis: [google-cloud-cli, google-cloud-cli-gke-gcloud-auth-plugin, azure-cli]
+
+# Repos that are per distro release have no suite for Vanilla OS's Debian testing
+# ("reunion"); the newest Debian builds they do have run there
+devops_tools_suites:
+  reunion: { hashicorp: trixie, azure-cli: bookworm }

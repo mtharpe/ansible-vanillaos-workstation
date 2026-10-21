@@ -16,6 +16,8 @@
     # Per minor release, so a version bump fetches the new key
     - { name: "kubernetes-{{ devops_tools_kubectl_minor }}", url: "https://pkgs.k8s.io/core:/stable:/v{{ devops_tools_kubectl_minor }}/deb/Release.key" }
     - { name: helm, url: https://packages.buildkite.com/helm-linux/helm-debian/gpgkey }
+    - { name: google-cloud, url: https://packages.cloud.google.com/apt/doc/apt-key.gpg }
+    - { name: microsoft, url: https://packages.microsoft.com/keys/microsoft.asc }
   loop_control:
     label: "{{ item.name }}"
   become: true
@@ -36,7 +38,7 @@
   loop:
     - name: hashicorp
       uri: https://apt.releases.hashicorp.com
-      suite: "{{ devops_tools_hashicorp_suites.get(devops_tools_codename.stdout, devops_tools_codename.stdout) }}"
+      suite: "{{ (devops_tools_suites[devops_tools_codename.stdout] | default({})).hashicorp | default(devops_tools_codename.stdout) }}"
       components: main
     - name: kubernetes
       key: kubernetes-{{ devops_tools_kubectl_minor }}
@@ -47,13 +49,22 @@
       uri: https://packages.buildkite.com/helm-linux/helm-debian/any/
       suite: any
       components: main
+    - name: google-cloud
+      uri: https://packages.cloud.google.com/apt
+      suite: cloud-sdk
+      components: main
+    - name: azure-cli
+      key: microsoft
+      uri: https://packages.microsoft.com/repos/azure-cli/
+      suite: "{{ (devops_tools_suites[devops_tools_codename.stdout] | default({}))['azure-cli'] | default(devops_tools_codename.stdout) }}"
+      components: main
   loop_control:
     label: "{{ item.name }}"
   become: true
 
 - name: Install the DevOps packages
   ansible.builtin.apt:
-    name: "{{ devops_tools_packages + devops_tools_hashicorp + ['kubectl', 'helm'] }}"
+    name: "{{ devops_tools_packages + devops_tools_hashicorp + devops_tools_cloud_clis + ['kubectl', 'helm'] }}"
     update_cache: true
   become: true
   when: apx_python3_apt.stdout == 'installed' or not ansible_check_mode
