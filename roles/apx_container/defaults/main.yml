@@ -1,7 +1,4 @@
 ---
-# This subsystem's own home (apx gives each one a custom home under ~/.apx-homes)
-apx_home: "{{ local_home }}/.apx-homes/{{ inventory_hostname | regex_replace('^apx-', '') }}"
-
 # Installed in every subsystem, so a shell or Claude session in any of them has the basics. rg,
 # fd, bat, fzf, eza, zoxide, delta, lazygit and btop come from cli_tools (host ~/.local/bin,
 # on every subsystem's PATH)

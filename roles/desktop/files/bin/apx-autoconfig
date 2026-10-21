@@ -1,0 +1,43 @@
+#!/bin/bash
+# Set up each new apx subsystem as soon as it's created (apx CLI or GUI): wait for distrobox's
+# first-start setup, then run the containers play for just that subsystem. Runs as
+# apx-autoconfig.service; follow it with `journalctl --user -fu apx-autoconfig`.
+set -uo pipefail
+
+repo=${APX_AUTOCONFIG_REPO:-$HOME/src/github/mtharpe/ansible-vanillaos-workstation}
+
+configure() {
+    local name=$1 i
+    echo "$name: created, waiting for distrobox setup"
+    for ((i = 0; i < 120; i++)); do
+        podman container exists "$name" || { echo "$name: removed before setup finished"; return; }
+        # distrobox logs container_setup_done once its init has finished
+        if podman logs "$name" 2>/dev/null | grep -q container_setup_done; then
+            echo "$name: configuring"
+            # stdin is the event stream; keep the play off it
+            if "$repo/run.sh" containers --limit "localhost,$name" </dev/null; then
+                echo "$name: done"
+            else
+                echo "$name: play failed; rerun with ./run.sh containers"
+            fi
+            return
+        fi
+        # apx normally starts it; start it ourselves if it's still sitting there after a minute
+        if ((i == 12)) && [[ $(podman inspect -f '{{.State.Running}}' "$name") != true ]]; then
+            podman start "$name" >/dev/null
+        fi
+        sleep 5
+    done
+    echo "$name: distrobox setup didn't finish in 10 minutes; run ./run.sh containers by hand"
+}
+
+# One at a time: subsystems sharing the host $HOME would race on the same files. The stream
+# can repeat an event, so each container is handled once.
+declare -A seen
+podman events --filter type=container --filter event=create --filter label=manager=apx \
+    --format '{{.ID}} {{.Name}}' |
+    while read -r id name; do
+        [[ -n ${seen[$id]-} ]] && continue
+        seen[$id]=1
+        configure "$name"
+    done

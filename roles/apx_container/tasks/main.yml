@@ -1,4 +1,42 @@
 ---
+# Every role here is apt-based; other stacks (fedora, arch, alpine...) aren't supported
+- name: Check for apt
+  ansible.builtin.raw: test -x /usr/bin/apt-get
+  register: apx_apt
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Stop on subsystems without apt
+  ansible.builtin.fail:
+    msg: "{{ inventory_hostname }} has no apt; only Debian/Ubuntu-based subsystems are set up"
+  when: apx_apt.rc != 0
+
+# Ansible's modules need Python, which the stock ubuntu/debian images don't have
+- name: Install Python
+  ansible.builtin.raw: >-
+    test -x /usr/bin/python3 && echo present ||
+    { apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3 >/dev/null; }
+  register: apx_python
+  changed_when: "'present' not in apx_python.stdout"
+  become: true
+
+# A subsystem made with `apx subsystems new -H <dir>` has its own home; without -H it shares
+# the host's. Either way it's the desktop user's home in the container's passwd.
+- name: Read the subsystem's home
+  ansible.builtin.command: getent passwd {{ local_user }}
+  register: apx_passwd
+  changed_when: false
+  check_mode: false
+
+- name: Set the subsystem's home
+  ansible.builtin.set_fact:
+    apx_home: "{{ apx_passwd.stdout.split(':')[5] }}"
+
+- name: Link to the host home
+  ansible.builtin.import_tasks: home.yml
+  when: apx_home != local_home
+
 # apx images ship docker-clean, which deletes apt's package cache and with it package-name
 # tab completion
 - name: Keep apt's package cache

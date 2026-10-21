@@ -1,0 +1,10 @@
+[Unit]
+Description=Set up new apx subsystems with the workstation playbook
+
+[Service]
+ExecStart=%h/.local/bin/apx-autoconfig
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target
