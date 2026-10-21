@@ -1,0 +1,39 @@
+---
+# DevOps toolset for the dev subsystems (apx_dev: both Claude subsystems, apx-ansible and
+# apx-vso-native), on top of apx_common_packages. yq (mikefarah's, not Debian's jq wrapper)
+# and k9s are static binaries from cli_tools.
+devops_tools_packages:
+  - build-essential
+  # Go, Node and Hugo: what the restored ~/src/github repos build with
+  - golang-go
+  - nodejs
+  - npm
+  - hugo
+  - python3-venv
+  - python3-pip
+  - pipx
+  - ansible
+  - ansible-lint
+  - yamllint
+  - git-lfs
+  - tmux
+  - tree
+  - wget
+  - rsync
+  - zip
+  - openssh-client
+  - gnupg
+  - httpie
+  - iproute2
+  - iputils-ping
+  - netcat-openbsd
+  - traceroute
+
+devops_tools_hashicorp: [terraform, terraform-ls, packer, vault, consul, nomad, boundary]
+
+# pkgs.k8s.io has one repo per minor release; bump to move kubectl along
+devops_tools_kubectl_minor: "1.37"
+
+# HashiCorp has no suite for Vanilla OS's Debian testing ("reunion"); trixie's builds run there
+devops_tools_hashicorp_suites:
+  reunion: trixie

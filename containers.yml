@@ -21,3 +21,13 @@
 
   roles:
     - vso_native
+
+- name: DevOps toolset
+  hosts: apx_dev
+  gather_facts: false
+
+  vars_files:
+    - vars/vars.yml
+
+  roles:
+    - devops_tools

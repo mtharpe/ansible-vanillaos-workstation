@@ -1,0 +1,78 @@
+---
+# Runs after apx_container, so python3-apt, curl and unzip are already there
+- name: Read the distro codename
+  ansible.builtin.shell: . /etc/os-release && echo "$VERSION_CODENAME"
+  register: devops_tools_codename
+  changed_when: false
+  check_mode: false
+
+- name: Add the apt keys
+  ansible.builtin.get_url:
+    url: "{{ item.url }}"
+    dest: /etc/apt/keyrings/{{ item.name }}.asc
+    mode: "0644"
+  loop:
+    - { name: hashicorp, url: https://apt.releases.hashicorp.com/gpg }
+    # Per minor release, so a version bump fetches the new key
+    - { name: "kubernetes-{{ devops_tools_kubectl_minor }}", url: "https://pkgs.k8s.io/core:/stable:/v{{ devops_tools_kubectl_minor }}/deb/Release.key" }
+    - { name: helm, url: https://packages.buildkite.com/helm-linux/helm-debian/gpgkey }
+  loop_control:
+    label: "{{ item.name }}"
+  become: true
+
+- name: Add the apt repos
+  ansible.builtin.copy:
+    content: |
+      Types: deb
+      URIs: {{ item.uri }}
+      Suites: {{ item.suite }}
+      {% if item.components is defined %}
+      Components: {{ item.components }}
+      {% endif %}
+      Architectures: amd64
+      Signed-By: /etc/apt/keyrings/{{ item.key | default(item.name) }}.asc
+    dest: /etc/apt/sources.list.d/{{ item.name }}.sources
+    mode: "0644"
+  loop:
+    - name: hashicorp
+      uri: https://apt.releases.hashicorp.com
+      suite: "{{ devops_tools_hashicorp_suites.get(devops_tools_codename.stdout, devops_tools_codename.stdout) }}"
+      components: main
+    - name: kubernetes
+      key: kubernetes-{{ devops_tools_kubectl_minor }}
+      uri: https://pkgs.k8s.io/core:/stable:/v{{ devops_tools_kubectl_minor }}/deb/
+      # Flat repo: no components
+      suite: /
+    - name: helm
+      uri: https://packages.buildkite.com/helm-linux/helm-debian/any/
+      suite: any
+      components: main
+  loop_control:
+    label: "{{ item.name }}"
+  become: true
+
+- name: Install the DevOps packages
+  ansible.builtin.apt:
+    name: "{{ devops_tools_packages + devops_tools_hashicorp + ['kubectl', 'helm'] }}"
+    update_cache: true
+  become: true
+  when: apx_python3_apt.stdout == 'installed' or not ansible_check_mode
+
+# AWS CLI v2 isn't packaged; AWS's installer puts it in /usr/local/aws-cli. Rerun with
+# -e devops_tools_aws_update=true to update it
+- name: Check for the AWS CLI
+  ansible.builtin.stat:
+    path: /usr/local/bin/aws
+  register: devops_tools_aws
+
+- name: Install the AWS CLI
+  ansible.builtin.shell: |
+    set -e
+    dir=$(mktemp -d)
+    trap 'rm -rf "$dir"' EXIT
+    curl -fsSL -o "$dir/awscliv2.zip" https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+    unzip -q "$dir/awscliv2.zip" -d "$dir"
+    "$dir/aws/install" --update
+  when: not devops_tools_aws.stat.exists or (devops_tools_aws_update | default(false) | bool)
+  changed_when: true
+  become: true
