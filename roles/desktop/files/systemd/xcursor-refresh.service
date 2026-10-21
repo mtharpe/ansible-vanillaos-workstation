@@ -1,0 +1,11 @@
+[Unit]
+Description=Re-apply the cursor size to XWayland after login and monitor changes
+After=graphical-session.target
+
+[Service]
+ExecStart=%h/.local/bin/xcursor-refresh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

@@ -12,6 +12,7 @@
     - screenshots-tidy.path
     - screenshots-tidy.service
     - zoom-bt-mic.service
+    - xcursor-refresh.service
 
 # The Twingate notifier (unit installed by the system role) opens the sign-in page via
 # $BROWSER; point it at gio since the host has no xdg-open
@@ -33,6 +34,7 @@
     - update-hatter-icons.timer
     - screenshots-tidy.path
     - zoom-bt-mic.service
+    - xcursor-refresh.service
 
 # SSH keys live only in the vault: rbw's agent is the session's SSH_AUTH_SOCK (apps and the
 # apx containers inherit it), and the GNOME (gcr) and OpenSSH agents are masked

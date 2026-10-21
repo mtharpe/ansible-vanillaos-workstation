@@ -1,4 +1,4 @@
 [Environment]
 XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons
+XCURSOR_THEME=Adwaita-NoBusy
 XCURSOR_SIZE=24
-XCURSOR_THEME=Adwaita

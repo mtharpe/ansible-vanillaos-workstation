@@ -1,0 +1,29 @@
+#!/bin/sh
+# Keep XWayland's pointer at the GNOME cursor size. Mutter sets XWayland's default cursor
+# once, at the display scale of the moment: when a login (or a dock change) briefly runs
+# at 2x, every X11 app (Slack, Zoom, ...) keeps a double-size pointer at 1x. Changing
+# cursor-size and setting it back makes mutter reload it at the current scale.
+# Runs once at login, then after every monitor change.
+
+schema=org.gnome.desktop.interface
+key=cursor-size
+size=$(gsettings get "$schema" "$key")
+trap 'gsettings set "$schema" "$key" "$size"; exit' INT TERM
+
+refresh() {
+    size=$(gsettings get "$schema" "$key")
+    gsettings set "$schema" "$key" $((size + 1))
+    sleep 1
+    gsettings set "$schema" "$key" "$size"
+    echo "refreshed XWayland cursor (size $size)"
+}
+
+# Let the monitor layout settle first
+sleep 5
+refresh
+gdbus monitor --session --dest org.gnome.Mutter.DisplayConfig --object-path /org/gnome/Mutter/DisplayConfig |
+while read -r line; do
+    case $line in
+        *MonitorsChanged*) sleep 3; refresh ;;
+    esac
+done
