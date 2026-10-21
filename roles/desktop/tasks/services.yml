@@ -13,6 +13,7 @@
     - screenshots-tidy.service
     - zoom-bt-mic.service
     - xcursor-refresh.service
+    - apx-autoconfig.service
 
 # The Twingate notifier (unit installed by the system role) opens the sign-in page via
 # $BROWSER; point it at gio since the host has no xdg-open
@@ -22,6 +23,8 @@
     dest: "{{ local_home }}/.config/systemd/user/twingate-desktop-notifier.service.d/browser.conf"
     mode: "0644"
 
+# podman.socket: the Docker API for the docker CLI in the dev subsystems (devops_tools).
+# apx-autoconfig: runs the containers play on each newly created apx subsystem.
 - name: Enable user services
   ansible.builtin.systemd_service:
     name: "{{ item }}"
@@ -35,6 +38,8 @@
     - screenshots-tidy.path
     - zoom-bt-mic.service
     - xcursor-refresh.service
+    - apx-autoconfig.service
+    - podman.socket
 
 # SSH keys live only in the vault: rbw's agent is the session's SSH_AUTH_SOCK (apps and the
 # apx containers inherit it), and the GNOME (gcr) and OpenSSH agents are masked

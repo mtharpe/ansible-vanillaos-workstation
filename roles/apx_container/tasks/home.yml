@@ -1,0 +1,65 @@
+---
+# A subsystem with its own home shares the host home's shell, git and SSH settings by
+# including them (managed blocks, so the subsystem can still add its own). Logins stay per
+# home: gh's hosts.yml, ~/.docker, and the cloud CLIs (~/.aws, ~/.config/gcloud, ~/.azure,
+# ~/.kube, ~/.terraform.d) are never linked, so work and personal keep separate accounts.
+
+# A path in this home can already lead to the host's file (claude-work's ~/.ssh is a symlink
+# to the host ~/.ssh); writing an include there would make the host file include itself
+- name: Resolve the shared files
+  ansible.builtin.command: realpath -m {{ apx_home }}/{{ item }}
+  loop: [.bashrc, .gitconfig, .ssh/config]
+  register: apx_home_paths
+  changed_when: false
+  check_mode: false
+
+- name: Note which ones are the host's own
+  ansible.builtin.set_fact:
+    apx_home_is_host: "{{ apx_home_paths.results
+                          | selectattr('stdout', 'in', apx_home_paths.results | map(attribute='item') | map('regex_replace', '^', local_home ~ '/'))
+                          | map(attribute='item') | list }}"
+
+# The host .bashrc brings the prompt, aliases and the host ~/.local/bin (cli_tools) on PATH
+- name: Source the host .bashrc
+  ansible.builtin.blockinfile:
+    path: "{{ apx_home }}/.bashrc"
+    create: true
+    mode: "0644"
+    marker: "# {mark} shared settings from the host home"
+    block: |
+      if [ -f {{ local_home }}/.bashrc ]; then
+          . {{ local_home }}/.bashrc
+      fi
+  when: "'.bashrc' not in apx_home_is_host"
+
+# Identity, signing (through rbw) and delta; first, so this home's own settings (gh's
+# credential helper) still win
+- name: Include the host .gitconfig
+  ansible.builtin.blockinfile:
+    path: "{{ apx_home }}/.gitconfig"
+    create: true
+    mode: "0644"
+    insertbefore: BOF
+    marker: "# {mark} host gitconfig"
+    block: |
+      [include]
+      	path = {{ local_home }}/.gitconfig
+  when: "'.gitconfig' not in apx_home_is_host"
+
+- name: Create .ssh
+  ansible.builtin.file:
+    path: "{{ apx_home }}/.ssh"
+    state: directory
+    mode: "0700"
+
+# ssh_config takes the first value it sees, so the include goes first too
+- name: Include the host SSH config
+  ansible.builtin.blockinfile:
+    path: "{{ apx_home }}/.ssh/config"
+    create: true
+    mode: "0600"
+    insertbefore: BOF
+    marker: "# {mark} host SSH config"
+    block: |
+      Include {{ local_home }}/.ssh/config
+  when: "'.ssh/config' not in apx_home_is_host"

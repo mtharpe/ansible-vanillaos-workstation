@@ -44,13 +44,13 @@ if [[ ! -x $venv/bin/ansible-playbook ]]; then
 fi
 "$venv/bin/ansible-galaxy" collection install -r "$repo/requirements.yml" -p "$ANSIBLE_COLLECTIONS_PATH" >/dev/null
 
-play() { "$venv/bin/ansible-playbook" -i "$repo/inventory.yml" "$repo/$1.yml" "${@:2}"; }
+play() { "$venv/bin/ansible-playbook" -i "$repo/inventory" "$repo/$1.yml" "${@:2}"; }
 
 system() {
     # pkexec drops the environment, so pass what the playbook needs explicitly
     pkexec env ANSIBLE_CONFIG="$ANSIBLE_CONFIG" ANSIBLE_COLLECTIONS_PATH="$ANSIBLE_COLLECTIONS_PATH" \
         ANSIBLE_LOCAL_TEMP=/tmp/.ansible-root ANSIBLE_REMOTE_TEMP=/tmp/.ansible-root \
-        "$venv/bin/ansible-playbook" -i "$repo/inventory.yml" "$repo/system.yml" "$@"
+        "$venv/bin/ansible-playbook" -i "$repo/inventory" "$repo/system.yml" "$@"
 }
 
 case ${1-} in

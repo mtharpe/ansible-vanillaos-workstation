@@ -12,32 +12,39 @@
   failed_when: false
   check_mode: false
 
-- name: Find a subsystem that is logged in
-  ansible.builtin.set_fact:
-    apx_gh_source: "{{ ansible_play_hosts | select('in', logged_in) | first | default('') }}"
-  vars:
-    logged_in: "{{ ansible_play_hosts | map('extract', hostvars, ['apx_gh_status', 'rc']) | zip(ansible_play_hosts)
-                   | selectattr(0, 'equalto', 0) | map(attribute=1) | list }}"
-  run_once: true
-
-- name: Copy the gh token from {{ apx_gh_source or 'nowhere (none is logged in)' }}
+# From any running subsystem, not just this run's: the new-subsystem watcher runs the play for
+# one subsystem only. (Delegating with an empty host fails even when skipped, so loop instead.)
+- name: Read the gh token from a logged-in subsystem
   environment: "{{ apx_gh_env }}"
   ansible.builtin.command: gh auth token --hostname github.com
-  register: apx_gh_token
-  delegate_to: "{{ apx_gh_source }}"
+  register: apx_gh_tokens
+  delegate_to: "{{ item }}"
+  loop: "{{ groups['apx'] }}"
   run_once: true
   changed_when: false
+  failed_when: false
   check_mode: false
   no_log: true
-  when: apx_gh_source != ''
+  when: ansible_play_hosts | map('extract', hostvars, ['apx_gh_status', 'rc']) | select('ne', 0) | list | length > 0
+
+- name: Pick the gh token
+  ansible.builtin.set_fact:
+    apx_gh_token: "{{ apx_gh_tokens.results | default([]) | selectattr('rc', 'defined') | selectattr('rc', 'equalto', 0)
+                      | map(attribute='stdout') | select | first | default('') }}"
+  no_log: true
+
+- name: Warn that no subsystem is logged in to gh
+  ansible.builtin.debug:
+    msg: No subsystem is logged in to GitHub; run `gh auth login --web` in one and rerun the containers play
+  when: apx_gh_status.rc != 0 and apx_gh_token == ''
 
 - name: Log in to gh
   environment: "{{ apx_gh_env }}"
   ansible.builtin.command: gh auth login --hostname github.com --git-protocol https --with-token
   args:
-    stdin: "{{ apx_gh_token.stdout }}"
+    stdin: "{{ apx_gh_token }}"
   no_log: true
-  when: apx_gh_status.rc != 0 and apx_gh_source != ''
+  when: apx_gh_status.rc != 0 and apx_gh_token != ''
 
 # git over HTTPS asks gh for the GitHub password
 
@@ -45,4 +52,4 @@
   environment: "{{ apx_gh_env }}"
   ansible.builtin.command: gh auth setup-git --hostname github.com
   changed_when: false
-  when: apx_gh_status.rc == 0 or apx_gh_source != ''
+  when: apx_gh_status.rc == 0 or apx_gh_token != ''

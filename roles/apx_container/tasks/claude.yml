@@ -41,17 +41,6 @@
     mode: "0755"
   become: true
 
-# The subsystem's own ~/.bashrc pulls in the host one for the shared prompt, aliases and the
-# ~/.local/bin PATH entry (cli_tools)
-- name: Source the host .bashrc
-  ansible.builtin.blockinfile:
-    path: "{{ apx_home }}/.bashrc"
-    marker: "# {mark} shared settings from the host home"
-    block: |
-      if [ -f {{ local_home }}/.bashrc ]; then
-          . {{ local_home }}/.bashrc
-      fi
-
 - name: Install the claude CLI
   ansible.builtin.shell: set -o pipefail && curl -fsSL https://claude.ai/install.sh | bash
   args:

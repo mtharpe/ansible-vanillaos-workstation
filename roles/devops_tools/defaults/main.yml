@@ -40,4 +40,13 @@ devops_tools_cloud_clis: [google-cloud-cli, google-cloud-cli-gke-gcloud-auth-plu
 # Repos that are per distro release have no suite for Vanilla OS's Debian testing
 # ("reunion"); the newest Debian builds they do have run there
 devops_tools_suites:
-  reunion: { hashicorp: trixie, azure-cli: bookworm }
+  reunion: { hashicorp: trixie, azure-cli: bookworm, docker: trixie }
+
+# Docker publishes per distro; Vanilla OS gets the Debian builds
+devops_tools_docker_os:
+  reunion: debian
+
+# No Docker daemon here: the CLI talks to the host's rootless podman (podman.socket, enabled
+# by the desktop role), whose /run/user is /run/host/run/user in every subsystem
+devops_tools_docker_packages: [docker-ce-cli, docker-buildx-plugin, docker-compose-plugin]
+devops_tools_docker_host: unix:///run/host/run/user/1000/podman/podman.sock

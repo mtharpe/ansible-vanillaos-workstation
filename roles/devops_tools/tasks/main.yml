@@ -6,6 +6,10 @@
   changed_when: false
   check_mode: false
 
+- name: Pick the per-distro repo suites
+  ansible.builtin.set_fact:
+    devops_tools_suite: "{{ devops_tools_suites[devops_tools_codename.stdout] | default({}) }}"
+
 - name: Add the apt keys
   ansible.builtin.get_url:
     url: "{{ item.url }}"
@@ -18,6 +22,7 @@
     - { name: helm, url: https://packages.buildkite.com/helm-linux/helm-debian/gpgkey }
     - { name: google-cloud, url: https://packages.cloud.google.com/apt/doc/apt-key.gpg }
     - { name: microsoft, url: https://packages.microsoft.com/keys/microsoft.asc }
+    - { name: docker, url: https://download.docker.com/linux/ubuntu/gpg }
   loop_control:
     label: "{{ item.name }}"
   become: true
@@ -38,7 +43,7 @@
   loop:
     - name: hashicorp
       uri: https://apt.releases.hashicorp.com
-      suite: "{{ (devops_tools_suites[devops_tools_codename.stdout] | default({})).hashicorp | default(devops_tools_codename.stdout) }}"
+      suite: "{{ devops_tools_suite.hashicorp | default(devops_tools_codename.stdout) }}"
       components: main
     - name: kubernetes
       key: kubernetes-{{ devops_tools_kubectl_minor }}
@@ -56,15 +61,19 @@
     - name: azure-cli
       key: microsoft
       uri: https://packages.microsoft.com/repos/azure-cli/
-      suite: "{{ (devops_tools_suites[devops_tools_codename.stdout] | default({}))['azure-cli'] | default(devops_tools_codename.stdout) }}"
+      suite: "{{ devops_tools_suite['azure-cli'] | default(devops_tools_codename.stdout) }}"
       components: main
+    - name: docker
+      uri: https://download.docker.com/linux/{{ devops_tools_docker_os[devops_tools_codename.stdout] | default('ubuntu') }}
+      suite: "{{ devops_tools_suite.docker | default(devops_tools_codename.stdout) }}"
+      components: stable
   loop_control:
     label: "{{ item.name }}"
   become: true
 
 - name: Install the DevOps packages
   ansible.builtin.apt:
-    name: "{{ devops_tools_packages + devops_tools_hashicorp + devops_tools_cloud_clis + ['kubectl', 'helm'] }}"
+    name: "{{ devops_tools_packages + devops_tools_hashicorp + devops_tools_cloud_clis + devops_tools_docker_packages + ['kubectl', 'helm'] }}"
     update_cache: true
   become: true
   when: apx_python3_apt.stdout == 'installed' or not ansible_check_mode
@@ -87,3 +96,65 @@
   when: not devops_tools_aws.stat.exists or (devops_tools_aws_update | default(false) | bool)
   changed_when: true
   become: true
+
+# A context (in ~/.docker) rather than DOCKER_HOST, so non-interactive shells get it too
+- name: Check for the host podman docker context
+  ansible.builtin.command: docker context inspect host-podman
+  register: devops_tools_docker_context
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Create the host podman docker context
+  ansible.builtin.command: docker context create host-podman --docker host={{ devops_tools_docker_host }}
+  register: devops_tools_docker_create
+  when: devops_tools_docker_context.rc != 0
+  changed_when: true
+  # apx-ansible and apx-vso-native share the host $HOME and run in parallel
+  failed_when: devops_tools_docker_create.rc != 0 and 'already exists' not in devops_tools_docker_create.stderr
+
+- name: Use the host podman docker context
+  ansible.builtin.command: docker context use host-podman
+  register: devops_tools_docker_use
+  changed_when: false
+  when: not ansible_check_mode
+
+# podman has no BuildKit of its own, so `docker build` runs BuildKit in a container on the
+# host podman; default-load puts the built image into podman like a plain docker build
+- name: Check for the podman BuildKit builder
+  ansible.builtin.command: docker buildx inspect podman-buildkit
+  register: devops_tools_buildx
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Create the podman BuildKit builder
+  ansible.builtin.command: >-
+    docker buildx create --name podman-buildkit --driver docker-container
+    --driver-opt default-load=true host-podman
+  register: devops_tools_buildx_create
+  when: devops_tools_buildx.rc != 0
+  changed_when: true
+  failed_when: devops_tools_buildx_create.rc != 0 and 'existing instance' not in devops_tools_buildx_create.stderr
+
+- name: Use the podman BuildKit builder
+  ansible.builtin.command: docker buildx use --default podman-buildkit
+  changed_when: false
+  when: not ansible_check_mode
+
+# Plain `docker build` always takes the builder named after the context (host-podman, which
+# buildx makes without default-load); the builder alias sends it through `docker buildx
+# build`, which takes podman-buildkit
+- name: Check for the docker builder alias
+  ansible.builtin.shell: >-
+    grep -q '"builder": "buildx"' ~/.docker/config.json
+  register: devops_tools_builder_alias
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# `install` is deprecated, but it's the only command that writes the alias
+- name: Route docker build through buildx
+  ansible.builtin.command: docker buildx install
+  when: devops_tools_builder_alias.rc != 0
+  changed_when: true

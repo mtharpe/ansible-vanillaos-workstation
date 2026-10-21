@@ -1,7 +1,31 @@
 ---
-# Inside the apx subsystems (created by apx_host in user.yml). Each has its own $HOME under
-# ~/.apx-homes, which is where per-profile installs (claude CLI, Zed) go. apx-vso-native comes
-# with the OS and shares the host $HOME.
+# Inside the apx subsystems: the ones apx_host creates (user.yml) and any made by hand, all
+# found by inventory/apx.podman_containers.yml. Most have their own $HOME under
+# ~/.apx-homes, which is where per-profile installs (claude CLI, Zed) and logins go;
+# apx-vso-native (made by the OS) and apx-ansible share the host $HOME.
+
+# The inventory only sees running containers
+- name: Start stopped subsystems
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+    - name: List the apx containers
+      ansible.builtin.command: podman ps -a --filter label=manager=apx --format json
+      register: apx_ps
+      changed_when: false
+      check_mode: false
+
+    - name: Start the stopped ones
+      ansible.builtin.command: podman start {{ item.Names[0] }}
+      loop: "{{ apx_ps.stdout | from_json | rejectattr('State', '==', 'running') }}"
+      loop_control:
+        label: "{{ item.Names[0] }}"
+      changed_when: true
+
+    - name: Pick them up
+      ansible.builtin.meta: refresh_inventory
+
 - name: Apx subsystem setup
   hosts: apx
   gather_facts: false
