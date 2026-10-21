@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Install/update the ArtCraft "Craft" apps (https://github.com/storytold) as user Flatpaks.
+# They aren't on Flathub: each release ships a single-file bundle, whose install leaves a
+# local "<app>-origin" remote with no URL, so `flatpak update` never sees new versions.
+# Downloads a bundle only when the latest release differs from the installed version, and
+# checks it against the release's SHA256SUMS.txt.
+# Usage: update-craft-apps [--force] [app...]   (default: all apps below)
+set -euo pipefail
+
+OWNER=storytold
+# PhotoCraft=Photoshop, VectorCraft=Illustrator, LightCraft=Lightroom, FilmCraft=Premiere,
+# EffectCraft=After Effects, DesignCraft=InDesign, PdfCraft=Acrobat, plus CAD, Figma-style
+# design and Pro Tools-style audio
+APPS=(photocraft vectorcraft lightcraft filmcraft effectcraft designcraft pdfcraft
+      cadcraft figcraft soundcraft)
+
+force=false
+if [[ "${1:-}" == --force ]]; then force=true; shift; fi
+(($#)) && APPS=("$@")
+
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+failed=0
+
+for app in "${APPS[@]}"; do
+  id="ai.storyteller.$app"
+  # The releases/latest page redirects to .../tag/vX.Y.Z (no API rate limit)
+  tag=$(curl -fsSI "https://github.com/$OWNER/$app/releases/latest" \
+    | sed -n 's|^[Ll]ocation: .*/tag/\([^[:space:]]*\).*|\1|p')
+  if [[ -z "$tag" ]]; then echo "$app: couldn't find the latest release" >&2; failed=1; continue; fi
+  latest=${tag#v}
+  installed=$(flatpak info --user "$id" 2>/dev/null | sed -n 's/^ *Version: //p' || true)
+
+  if ! $force && [[ "$installed" == "$latest" ]]; then
+    echo "$app is up to date ($latest)"
+    continue
+  fi
+  echo "Updating $app ${installed:-<none>} -> $latest"
+
+  bundle="$app-$latest-linux-x86_64.flatpak"
+  base="https://github.com/$OWNER/$app/releases/download/$tag"
+  mkdir -p "$work/$app"
+  if ! curl -fsSL -o "$work/$app/$bundle" "$base/$bundle" \
+     || ! curl -fsSL -o "$work/$app/SHA256SUMS.txt" "$base/SHA256SUMS.txt" \
+     || ! (cd "$work/$app" && grep " $bundle\$" SHA256SUMS.txt | sha256sum -c --quiet -); then
+    echo "$app: download or checksum failed, skipping" >&2; failed=1; continue
+  fi
+  # --reinstall: a bundle can't update an install from another bundle in place. App data in
+  # ~/.var/app survives.
+  flatpak install --user --noninteractive -y --reinstall --bundle "$work/$app/$bundle" \
+    || { echo "$app: install failed" >&2; failed=1; continue; }
+  rm -rf "${work:?}/$app"
+done
+
+exit $failed
