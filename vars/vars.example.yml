@@ -50,6 +50,15 @@ cli_tools:
     version: 0.20.1
     url: https://github.com/dandavison/delta/releases/download/0.20.1/delta-0.20.1-x86_64-unknown-linux-musl.tar.gz
     member: delta-0.20.1-x86_64-unknown-linux-musl/delta
+  # mikefarah's yq (the apt yq is a jq wrapper)
+  - name: yq
+    version: 4.54.1
+    url: https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_linux_amd64.tar.gz
+    member: yq_linux_amd64
+  - name: k9s
+    version: 0.51.0
+    url: https://github.com/derailed/k9s/releases/download/v0.51.0/k9s_Linux_amd64.tar.gz
+    member: k9s
 
 nerd_fonts_version: v3.5.1
 nerd_fonts: [JetBrainsMono, FiraCode, Hack, Meslo, CascadiaCode]
@@ -117,7 +126,7 @@ rbw_quick_access_upstream: https://git.forgeserv.cloud/oitsjustjose/rbw-quick-ac
 rbw_quick_access_checkout: "{{ local_home }}/src/github/mtharpe/rbw-quick-access"
 rbw_version: 1.15.0
 
-# apx subsystems: name -> custom home
+# apx subsystems: name -> custom home (no home: shares the host $HOME)
 apx_subsystems:
   - name: claude-work
     home: "{{ local_home }}/.apx-homes/claude-work"
@@ -125,3 +134,4 @@ apx_subsystems:
     home: "{{ local_home }}/.apx-homes/claude-personal"
   - name: bitwarden
     home: "{{ local_home }}/.apx-homes/bitwarden"
+  - name: ansible
