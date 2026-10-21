@@ -19,6 +19,7 @@
     - displays-reset
     - bitwarden-desktop
     - zoom-bt-mic
+    - xcursor-refresh
 
 - name: Install menu entries
   ansible.builtin.copy:

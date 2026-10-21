@@ -7,7 +7,8 @@
 
 # Chrome, Slack: SSL_CERT_FILE unset so they use their own CA bundle.
 # Nextcloud: X11 (with Wayland its tray menu opens mid-screen).
-# Zoom: cursor theme path, since its runtime ships no cursors.
+# global: cursor theme path for every app (freedesktop runtimes ship no cursors), so X11
+#  apps find Adwaita-NoBusy instead of falling back to the huge core cursor.
 - name: Install Flatpak overrides
   ansible.builtin.copy:
     src: flatpak-overrides/

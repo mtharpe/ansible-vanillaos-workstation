@@ -23,6 +23,9 @@
 
 # GNOME has no setting to turn off the busy (spinner) cursor. Adwaita-NoBusy is Adwaita
 # with the busy cursors pointing at the normal arrow; selected via desktop_dconf.
+# It's a full copy, not links into /usr/share/icons/Adwaita: in a Flatpak sandbox that
+# path is the runtime's (no cursors in freedesktop runtimes), so links dangle and apps
+# fall back to the huge core X cursor. The global Flatpak override points at it.
 - name: Create the Adwaita-NoBusy cursor theme
   ansible.builtin.file:
     path: "{{ local_home }}/.local/share/icons/Adwaita-NoBusy/cursors"
@@ -39,9 +42,14 @@
     dest: "{{ local_home }}/.local/share/icons/Adwaita-NoBusy/index.theme"
     mode: "0644"
 
+- name: Copy the Adwaita cursors into Adwaita-NoBusy
+  ansible.builtin.command: cp -a /usr/share/icons/Adwaita/cursors/. {{ local_home }}/.local/share/icons/Adwaita-NoBusy/cursors/
+  args:
+    creates: "{{ local_home }}/.local/share/icons/Adwaita-NoBusy/cursors/default"
+
 - name: Point the busy cursors at the arrow
   ansible.builtin.file:
-    src: /usr/share/icons/Adwaita/cursors/default
+    src: default
     dest: "{{ local_home }}/.local/share/icons/Adwaita-NoBusy/cursors/{{ item }}"
     state: link
     force: true
