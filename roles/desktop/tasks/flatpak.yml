@@ -5,6 +5,13 @@
     method: user
     remote: flathub
 
+# ArtCraft's Craft apps (open-source Adobe-suite rebuilds and more) ship only as Flatpak
+# bundles on GitHub; update-craft-apps installs them and its weekly timer keeps them current
+- name: Install the Craft apps
+  ansible.builtin.command: "{{ local_home }}/.local/bin/update-craft-apps"
+  register: desktop_craft_apps
+  changed_when: "'Updating ' in desktop_craft_apps.stdout"
+
 # Chrome, Slack: SSL_CERT_FILE unset so they use their own CA bundle.
 # Nextcloud: X11 (with Wayland its tray menu opens mid-screen).
 # global: cursor theme path for every app (freedesktop runtimes ship no cursors), so X11

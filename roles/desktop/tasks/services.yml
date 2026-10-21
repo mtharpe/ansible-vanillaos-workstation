@@ -9,6 +9,8 @@
     - power-profile-auto.service
     - update-hatter-icons.service
     - update-hatter-icons.timer
+    - update-craft-apps.service
+    - update-craft-apps.timer
     - screenshots-tidy.path
     - screenshots-tidy.service
     - zoom-bt-mic.service
@@ -35,6 +37,7 @@
   loop:
     - power-profile-auto.service
     - update-hatter-icons.timer
+    - update-craft-apps.timer
     - screenshots-tidy.path
     - zoom-bt-mic.service
     - xcursor-refresh.service

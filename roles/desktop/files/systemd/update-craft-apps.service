@@ -1,0 +1,8 @@
+[Unit]
+Description=Update the ArtCraft Craft apps (Flatpak bundles)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/update-craft-apps
