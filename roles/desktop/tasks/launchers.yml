@@ -21,6 +21,7 @@
     - displays-reset
     - bitwarden-desktop
     - zoom-bt-mic
+    - bt-av-resync
     - xcursor-refresh
 
 - name: Install menu entries
