@@ -14,6 +14,7 @@
     - screenshots-tidy.path
     - screenshots-tidy.service
     - zoom-bt-mic.service
+    - bt-av-resync.service
     - xcursor-refresh.service
     - apx-autoconfig.service
 
@@ -40,6 +41,7 @@
     - update-craft-apps.timer
     - screenshots-tidy.path
     - zoom-bt-mic.service
+    - bt-av-resync.service
     - xcursor-refresh.service
     - apx-autoconfig.service
     - podman.socket
