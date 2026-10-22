@@ -75,9 +75,9 @@
 # Zoom: don't shrink the meeting into the floating mini window when it loses focus.
 - name: Disable Zoom's meeting mini window
   community.general.ini_file:
-    path: "{{ local_home }}/.var/app/us.zoom.Zoom/config/zoom.conf"
+    path: "{{ local_home }}/.var/app/us.zoom.Zoom/config/zoomus.conf"
     section: General
     option: enableMiniWindow
     value: "false"
     no_extra_spaces: true
-    mode: "0600"
+    mode: "0644"
