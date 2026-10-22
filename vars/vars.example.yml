@@ -135,3 +135,12 @@ apx_subsystems:
   - name: bitwarden
     home: "{{ local_home }}/.apx-homes/bitwarden"
   - name: ansible
+
+# Bluetooth headsets: WirePlumber codec profile and latency offset (ms, may be negative) that keep
+# Chrome video in sync. address is the Bluetooth MAC (bluetoothctl devices); route is the output
+# route name (default headset-output)
+bt_audio_devices:
+  - name: Pixel Buds Pro 2
+    address: "XX:XX:XX:XX:XX:XX"
+    profile: a2dp-sink-sbc_xq
+    latency_offset_ms: -100
