@@ -71,3 +71,13 @@
       value: !unsafe "\"curl -s -H \\\"Authorization: Client-ID fc2a3faf090d08b\\\" -F \\\"image=@$1\\\" https://api.imgur.com/3/image | tee >(sed -n 's/.*\\\"deletehash\\\":\\\"\\\\([^\\\"]*\\\\)\\\".*/\\\\1/p' | while read h; do echo \\\"[$(date +%F_%T)] $h\\\"; done >> \\\"$XDG_CONFIG_HOME/imgur-delete-hashes.txt\\\") | sed -n 's/.*\\\"link\\\":\\\"\\\\([^\\\"]*\\\\)\\\".*/\\\\1/p' | sed 's/\\\\\\\\//g'\""
   loop_control:
     label: "{{ item.option }}"
+
+# Zoom: don't shrink the meeting into the floating mini window when it loses focus.
+- name: Disable Zoom's meeting mini window
+  community.general.ini_file:
+    path: "{{ local_home }}/.var/app/us.zoom.Zoom/config/zoom.conf"
+    section: General
+    option: enableMiniWindow
+    value: "false"
+    no_extra_spaces: true
+    mode: "0600"
