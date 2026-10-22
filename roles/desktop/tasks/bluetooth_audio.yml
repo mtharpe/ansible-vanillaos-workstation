@@ -1,0 +1,81 @@
+---
+# Bluetooth headsets: the A2DP codec profile, and a latency offset so Chrome keeps video
+# in sync (with Opus the Pixel Buds reported no delay; with SBC-XQ they over-report it).
+# WirePlumber keeps both only in its state files, keyed by the Bluetooth address: its
+# config can't set a latency offset for audio nodes. It also rewrites those files from
+# memory, so it's stopped while they're edited.
+- name: Read WirePlumber's saved profiles and routes
+  ansible.builtin.slurp:
+    path: "{{ desktop_wp_state }}/{{ item }}"
+  loop:
+    - default-profile
+    - default-routes
+  register: desktop_wp_slurp
+  failed_when: false
+
+- name: Work out which headset settings differ
+  ansible.builtin.set_fact:
+    desktop_bt_audio_todo: "{{ desktop_bt_audio_todo | default([]) + [item | combine(desktop_bt_audio_state)] }}"
+  vars:
+    desktop_wp_lines: >-
+      {{ (desktop_wp_slurp.results | selectattr('content', 'defined') | map(attribute='content')
+          | map('b64decode') | join('\n')).splitlines() }}
+    desktop_card: bluez_card.{{ item.address | replace(':', '_') }}
+    desktop_route_key: "{{ desktop_card }}:output:{{ item.route | default('headset-output') }}"
+    desktop_route_now: >-
+      {{ desktop_wp_lines | select('match', (desktop_route_key ~ '=') | regex_escape)
+         | map('regex_replace', '^[^=]+=', '') | first | default('{}') | from_json }}
+    desktop_profile_now: >-
+      {{ desktop_wp_lines | select('match', (desktop_card ~ '=') | regex_escape)
+         | map('regex_replace', '^[^=]+=', '') | first | default('') }}
+    desktop_bt_audio_state:
+      card: "{{ desktop_card }}"
+      route_key: "{{ desktop_route_key }}"
+      # Merged into the saved route, so the headset's volume is kept
+      route_value: "{{ desktop_route_now | combine({'latencyOffsetNsec': item.latency_offset_ms * 1000000}) | to_json }}"
+      changed: >-
+        {{ desktop_profile_now != item.profile
+           or desktop_route_now.latencyOffsetNsec | default(0) != item.latency_offset_ms * 1000000 }}
+  loop: "{{ bt_audio_devices }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Apply headset codec profiles and latency offsets
+  when: desktop_bt_audio_todo | default([]) | map(attribute='changed') | map('bool') | select | list | length > 0
+  block:
+    - name: Stop WirePlumber while its state is edited
+      ansible.builtin.systemd_service:
+        name: wireplumber.service
+        scope: user
+        state: stopped
+
+    - name: Save each headset's codec profile
+      community.general.ini_file:
+        path: "{{ desktop_wp_state }}/default-profile"
+        section: default-profile
+        option: "{{ item.card }}"
+        value: "{{ item.profile }}"
+        no_extra_spaces: true
+        mode: "0644"
+      loop: "{{ desktop_bt_audio_todo }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Save each headset's latency offset
+      community.general.ini_file:
+        path: "{{ desktop_wp_state }}/default-routes"
+        section: default-routes
+        option: "{{ item.route_key }}"
+        value: "{{ item.route_value }}"
+        no_extra_spaces: true
+        mode: "0644"
+      loop: "{{ desktop_bt_audio_todo }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+  always:
+    - name: Start WirePlumber
+      ansible.builtin.systemd_service:
+        name: wireplumber.service
+        scope: user
+        state: started

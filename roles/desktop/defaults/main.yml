@@ -48,3 +48,7 @@ desktop_dconf:
   # The Twingate notifier opens sign-in pages; the panel opening them too gave duplicate tabs
   /org/gnome/shell/extensions/twingate-panel/auth-auto-open: "false"
   /org/gnome/shell/extensions/twingate-panel/privileged-helper: "'/usr/local/libexec/twingate-switch'"
+
+desktop_wp_state: "{{ local_home }}/.local/state/wireplumber"
+# Bluetooth headsets' codec profile and latency offset (set in vars/vars.yml)
+bt_audio_devices: []
