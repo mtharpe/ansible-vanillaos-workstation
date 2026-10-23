@@ -1,7 +1,5 @@
 [Context]
-sockets=!wayland;x11;
-unset-environment=WAYLAND_DISPLAY;
+sockets=wayland;
 
 [Environment]
-WAYLAND_DISPLAY=
-XDG_SESSION_TYPE=x11
+ELECTRON_OZONE_PLATFORM_HINT=auto

@@ -12,8 +12,11 @@
   register: desktop_craft_apps
   changed_when: "'Updating ' in desktop_craft_apps.stdout"
 
-# Chrome, Slack: SSL_CERT_FILE unset so they use their own CA bundle.
-# Nextcloud: X11 (with Wayland its tray menu opens mid-screen).
+# Chrome: may talk to org.freedesktop.Flatpak.
+# Wayland everywhere it works: Slack and MeshLab are moved onto it here, Zoom below.
+#  Left on X11: Nextcloud (with Wayland its tray menu opens mid-screen), Bambu Studio
+#  (Flathub ships it X11-only; its 3D view misbehaves on Wayland), OnlyOffice (no
+#  Wayland support in its bundled Qt).
 # global: cursor theme path for every app (freedesktop runtimes ship no cursors), so X11
 #  apps find Adwaita-NoBusy instead of falling back to the huge core cursor.
 - name: Install Flatpak overrides
@@ -88,3 +91,18 @@
     - { option: xwayland, value: "false" }
   loop_control:
     label: "{{ item.option }}"
+
+# ZoomLauncher reads xwayland from ~/.config/zoomus.conf, which the sandbox doesn't have;
+# the override persists .config in the app dir, and this points it at the real file
+- name: Create Zoom's persisted .config dir
+  ansible.builtin.file:
+    path: "{{ local_home }}/.var/app/us.zoom.Zoom/.config"
+    state: directory
+    mode: "0755"
+
+- name: Point ZoomLauncher at zoomus.conf
+  ansible.builtin.file:
+    src: "{{ local_home }}/.var/app/us.zoom.Zoom/config/zoomus.conf"
+    dest: "{{ local_home }}/.var/app/us.zoom.Zoom/.config/zoomus.conf"
+    state: link
+    force: true
