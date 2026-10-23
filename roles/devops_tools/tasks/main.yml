@@ -78,6 +78,14 @@
   become: true
   when: apx_python3_apt.stdout == 'installed' or not ansible_check_mode
 
+# The cloud-sdk repo ships its own kubectl with an epoch (1:590...), which apt would
+# always prefer over the pkgs.k8s.io one; hold kubectl at the pkgs.k8s.io build
+- name: Hold kubectl at the pkgs.k8s.io build
+  ansible.builtin.dpkg_selections:
+    name: kubectl
+    selection: hold
+  become: true
+
 # AWS CLI v2 isn't packaged; AWS's installer puts it in /usr/local/aws-cli. Rerun with
 # -e devops_tools_aws_update=true to update it
 - name: Check for the AWS CLI
