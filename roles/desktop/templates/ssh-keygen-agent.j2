@@ -1,0 +1,10 @@
+#!/bin/sh
+# Git signs commits with `ssh-keygen -Y sign`, which reaches a key only through
+# SSH_AUTH_SOCK — it ignores IdentityAgent in ~/.ssh/config. Point it at the
+# {{ password_manager | default('1password') }} agent's socket whatever shell or apx container git runs from.
+for sock in {{ ssh_agent_sockets | join(' ') }}; do
+    if [ -S "$sock" ]; then
+        SSH_AUTH_SOCK=$sock exec ssh-keygen "$@"
+    fi
+done
+exec ssh-keygen "$@"

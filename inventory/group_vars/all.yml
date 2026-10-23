@@ -1,0 +1,7 @@
+# SSH agent sockets for the chosen password_manager (vars.yml), first match wins. 1Password's
+# is in its subsystem's home, the same path everywhere. rbw's is under the host's
+# /run/user/1000, which apx-vso-native (it has its own /run/user) only sees under /run/host.
+ssh_agent_sockets: >-
+  {{ [local_home ~ '/.apx-homes/1password/.1password/agent.sock']
+     if password_manager | default('1password') == '1password' else
+     ['/run/user/1000/rbw/ssh-agent-socket', '/run/host/run/user/1000/rbw/ssh-agent-socket'] }}

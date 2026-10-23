@@ -1,0 +1,9 @@
+# Sourced by ~/.bashrc: SSH keys come from the {{ password_manager | default('1password') }} agent (dotfiles role,
+# password_manager in vars.yml). The first socket that exists wins.
+for __sock in {{ ssh_agent_sockets | join(' ') }}; do
+    if [[ -S $__sock ]]; then
+        export SSH_AUTH_SOCK=$__sock
+        break
+    fi
+done
+unset __sock

@@ -68,7 +68,7 @@
 # build-linux.sh builds and installs only the named apps; each one is skipped once installed
 # (update by running build-linux.sh by hand). Electron comes from a git+ssh dependency:
 # npm 12 refuses git dependencies unless allowed, and on a fresh machine there's no SSH key
-# yet (rbw is set up afterwards), so fetch it from GitHub over HTTPS.
+# yet (1Password is set up afterwards), so fetch it from GitHub over HTTPS.
 - name: Build and install missing web apps
   ansible.builtin.command: ./build-linux.sh {{ item }}
   args:

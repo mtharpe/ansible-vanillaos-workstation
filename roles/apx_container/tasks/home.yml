@@ -32,7 +32,7 @@
       fi
   when: "'.bashrc' not in apx_home_is_host"
 
-# Identity, signing (through rbw) and delta; first, so this home's own settings (gh's
+# Identity, signing (through 1Password) and delta; first, so this home's own settings (gh's
 # credential helper) still win
 - name: Include the host .gitconfig
   ansible.builtin.blockinfile:

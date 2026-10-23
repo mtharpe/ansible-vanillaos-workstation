@@ -45,6 +45,20 @@
     dest: "{{ desktop_chrome_nm_dir }}/com.8bit.bitwarden.json"
     mode: "0644"
 
+# Same for the 1Password extension: it shows the app's sign-in and lock state, and unlocks
+# with it. The container side (chrome-flatpak, the allowlist) is in apx_container.
+- name: Install the 1Password native messaging host
+  ansible.builtin.copy:
+    src: onepassword/1password-native-messaging
+    dest: "{{ desktop_chrome_nm_dir }}/1password-native-messaging"
+    mode: "0755"
+
+- name: Register the 1Password native messaging host
+  ansible.builtin.template:
+    src: com.1password.1password.json.j2
+    dest: "{{ desktop_chrome_nm_dir }}/com.1password.1password.json"
+    mode: "0644"
+
 # Gradia (screenshot editor): its recent-screenshots picker looks in ~/Pictures/Screenshots.
 # Sandboxed apps keep GSettings in a keyfile under ~/.var/app.
 - name: Point Gradia at the screenshots folder

@@ -1,6 +1,7 @@
 ---
-# Bitwarden desktop: official .deb (there's no apt repo). Kept for the full vault UI; SSH
-# and git signing go through rbw's agent (below), not this app. Updates: the in-app
+# Bitwarden desktop: official .deb (there's no apt repo). With password_manager: 1password
+# it's a client only, not autostarted; with bitwarden it's kept for the full vault UI, and
+# SSH and git signing go through rbw's agent (below), not this app. Updates: the in-app
 # updater, or rerun with bitwarden_update=true.
 - name: Install Bitwarden's undeclared dependencies
   ansible.builtin.apt:
@@ -43,62 +44,65 @@
 
 # Quick access (fork of rbw-quick-access, a 1Password-style search over the vault, run from
 # its checkout by ~/.local/bin/rbw-quick-access). It needs rbw 1.14+ for `search --raw`;
-# Ubuntu ships 1.13, so use the upstream static build.
-- name: Install quick access dependencies
-  ansible.builtin.apt:
-    name: [git, python3-pyqt6, python3-pydantic, python3-platformdirs, pinentry-qt, libsecret-tools]
-  become: true
-  when: apx_python3_apt.stdout == 'installed' or not ansible_check_mode
+# Ubuntu ships 1.13, so use the upstream static build. Only with password_manager: bitwarden.
+- name: Bitwarden quick access and rbw's SSH agent
+  when: password_manager | default('1password') == 'bitwarden'
+  block:
+    - name: Install quick access dependencies
+      ansible.builtin.apt:
+        name: [git, python3-pyqt6, python3-pydantic, python3-platformdirs, pinentry-qt, libsecret-tools]
+      become: true
+      when: apx_python3_apt.stdout == 'installed' or not ansible_check_mode
 
-# The launcher runs src/main.py straight from this checkout
-- name: Clone the rbw-quick-access fork
-  ansible.builtin.shell: >-
-    git clone {{ rbw_quick_access_repo }} {{ rbw_quick_access_checkout }} &&
-    git -C {{ rbw_quick_access_checkout }} remote add upstream {{ rbw_quick_access_upstream }}
-  args:
-    creates: "{{ rbw_quick_access_checkout }}/src/main.py"
+    # The launcher runs src/main.py straight from this checkout
+    - name: Clone the rbw-quick-access fork
+      ansible.builtin.shell: >-
+        git clone {{ rbw_quick_access_repo }} {{ rbw_quick_access_checkout }} &&
+        git -C {{ rbw_quick_access_checkout }} remote add upstream {{ rbw_quick_access_upstream }}
+      args:
+        creates: "{{ rbw_quick_access_checkout }}/src/main.py"
 
-- name: Remove Ubuntu's older rbw
-  ansible.builtin.apt:
-    name: rbw
-    state: absent
-  become: true
-  when: apx_python3_apt.stdout == 'installed' or not ansible_check_mode
+    - name: Remove Ubuntu's older rbw
+      ansible.builtin.apt:
+        name: rbw
+        state: absent
+      become: true
+      when: apx_python3_apt.stdout == 'installed' or not ansible_check_mode
 
-- name: Check the installed rbw version
-  ansible.builtin.command: /usr/local/bin/rbw --version
-  register: apx_rbw_version
-  changed_when: false
-  check_mode: false
-  failed_when: false
+    - name: Check the installed rbw version
+      ansible.builtin.command: /usr/local/bin/rbw --version
+      register: apx_rbw_version
+      changed_when: false
+      check_mode: false
+      failed_when: false
 
-- name: Install rbw {{ rbw_version }}
-  ansible.builtin.unarchive:
-    src: https://github.com/doy/rbw/releases/download/{{ rbw_version }}/rbw_{{ rbw_version }}_linux_amd64.tar.gz
-    dest: /usr/local/bin
-    remote_src: true
-    include: [rbw, rbw-agent]
-    mode: "0755"
-  become: true
-  when: apx_rbw_version.stdout != 'rbw ' ~ rbw_version
+    - name: Install rbw {{ rbw_version }}
+      ansible.builtin.unarchive:
+        src: https://github.com/doy/rbw/releases/download/{{ rbw_version }}/rbw_{{ rbw_version }}_linux_amd64.tar.gz
+        dest: /usr/local/bin
+        remote_src: true
+        include: [rbw, rbw-agent]
+        mode: "0755"
+      become: true
+      when: apx_rbw_version.stdout != 'rbw ' ~ rbw_version
 
-# Prompts go through pinentry-keyring, which answers the master password from the GNOME login
-# keyring (stored the first time it's typed into pinentry-qt), so unlocking needs no typing.
-# The long lock timeout keeps rbw-agent unlocked until it stops (reboot).
-- name: Install the keyring-backed pinentry
-  ansible.builtin.copy:
-    src: pinentry-keyring
-    dest: /usr/local/bin/pinentry-keyring
-    mode: "0755"
-  become: true
+    # Prompts go through pinentry-keyring, which answers the master password from the GNOME login
+    # keyring (stored the first time it's typed into pinentry-qt), so unlocking needs no typing.
+    # The long lock timeout keeps rbw-agent unlocked until it stops (reboot).
+    - name: Install the keyring-backed pinentry
+      ansible.builtin.copy:
+        src: pinentry-keyring
+        dest: /usr/local/bin/pinentry-keyring
+        mode: "0755"
+      become: true
 
-# The email is set by hand along with `rbw login` (see README)
-- name: Configure rbw
-  ansible.builtin.command: rbw config set {{ item.key }} {{ item.value }}
-  loop:
-    - { key: pinentry, value: pinentry-keyring }
-    - { key: lock_timeout, value: "2592000" }
-  changed_when: false
+    # The email is set by hand along with `rbw login` (see README)
+    - name: Configure rbw
+      ansible.builtin.command: rbw config set {{ item.key }} {{ item.value }}
+      loop:
+        - { key: pinentry, value: pinentry-keyring }
+        - { key: lock_timeout, value: "2592000" }
+      changed_when: false
 
 - name: Open URLs on the host
   ansible.builtin.import_tasks: xdg_open.yml

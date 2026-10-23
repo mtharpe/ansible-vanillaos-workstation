@@ -1,13 +1,14 @@
 [user]
 	name = Michael Tharpe
 	email = mtharpe@users.noreply.github.com
-	# The public half of the Bitwarden key; the private key never leaves Bitwarden's agent.
-	signingkey = /home/tharpem/.ssh/bitwarden-personal.pub
+	# The public half of the vault's SSH key; the private key never leaves the password
+	# manager's agent (1Password or rbw).
+	signingkey = /home/tharpem/.ssh/git-signing.pub
 [gpg]
 	format = ssh
 [gpg "ssh"]
-	# Wraps ssh-keygen so signing reaches Bitwarden's agent from any shell or apx container.
-	program = /home/tharpem/.local/bin/ssh-keygen-bitwarden
+	# Wraps ssh-keygen so signing reaches the agent from any shell or apx container.
+	program = /home/tharpem/.local/bin/ssh-keygen-agent
 	allowedSignersFile = /home/tharpem/.ssh/allowed_signers
 [commit]
 	gpgsign = true
@@ -15,14 +16,14 @@
 	gpgsign = true
 [core]
 	# The apx containers each have their own $HOME, so name the real SSH config explicitly:
-	# push and pull then use Bitwarden's agent from every one of them.
+	# push and pull then use the password manager's agent from every one of them.
 	sshCommand = ssh -F /home/tharpem/.ssh/config
 	# delta: syntax-highlighted diffs for diff/show/log -p/blame (absolute path so apx containers find it)
 	pager = /home/tharpem/.local/bin/delta
 [init]
 	defaultBranch = main
 [url "git@github.com:"]
-	# Pushes to GitHub go over SSH (Bitwarden's key) even from an https clone. Fetches stay
+	# Pushes to GitHub go over SSH (the vault's key) even from an https clone. Fetches stay
 	# https, so tools that clone public repos — npm pulling the castlabs Electron fork —
 	# keep working where no agent is reachable.
 	pushInsteadOf = https://github.com/

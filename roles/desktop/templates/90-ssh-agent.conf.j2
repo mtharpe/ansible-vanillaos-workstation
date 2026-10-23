@@ -1,0 +1,4 @@
+# Every app in the session (and the apx containers, which inherit it) uses the
+# {{ password_manager | default('1password') }} SSH agent. GNOME's gcr-ssh-agent and OpenSSH's ssh-agent units are
+# masked so no keys live elsewhere.
+SSH_AUTH_SOCK={{ ssh_agent_sockets[0] }}

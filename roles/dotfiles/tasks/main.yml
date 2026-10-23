@@ -22,18 +22,30 @@
     - { src: inputrc, dest: .inputrc }
     - { src: gitconfig, dest: .gitconfig }
     - { src: lazygit.yml, dest: .config/lazygit/config.yml }
-    # IdentityAgent = rbw's SSH agent socket (rbw runs in the bitwarden subsystem)
-    - { src: ssh_config, dest: .ssh/config, mode: "0600" }
+  loop_control:
+    label: "{{ item.dest }}"
+
+# The SSH agent of the password manager picked in vars.yml (password_manager): IdentityAgent
+# for ssh, SSH_AUTH_SOCK for shells (.bashrc sources ssh-agent.bash)
+- name: Point SSH at the password manager's agent
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ local_home }}/{{ item.dest }}"
+    mode: "{{ item.mode }}"
+    backup: true
+  loop:
+    - { src: ssh_config.j2, dest: .ssh/config, mode: "0600" }
+    - { src: ssh-agent.bash.j2, dest: .config/ssh-agent.bash, mode: "0644" }
   loop_control:
     label: "{{ item.dest }}"
 
 # Git commit signing (gitconfig) needs the public half of the vault's SSH key. It isn't kept
-# in this repo: read it from rbw's agent. On a fresh machine rbw isn't logged in yet, so this
-# is skipped; re-run `./run.sh user` after setting up rbw.
-- name: Read the signing key from rbw's SSH agent
+# in this repo: read it from the password manager's agent. On a fresh machine that isn't
+# signed in yet, so this is skipped; re-run `./run.sh user` after setting it up.
+- name: Read the signing key from the SSH agent
   ansible.builtin.command: ssh-add -L
   environment:
-    SSH_AUTH_SOCK: /run/user/1000/rbw/ssh-agent-socket
+    SSH_AUTH_SOCK: "{{ ssh_agent_sockets[0] }}"
   register: dotfiles_agent_keys
   changed_when: false
   failed_when: false
@@ -45,7 +57,7 @@
     dest: "{{ local_home }}/.ssh/{{ item.dest }}"
     mode: "0644"
   loop:
-    - { dest: bitwarden-personal.pub, content: "{{ dotfiles_signing_key }}" }
+    - { dest: git-signing.pub, content: "{{ dotfiles_signing_key }}" }
     - { dest: allowed_signers, content: 'mtharpe@users.noreply.github.com namespaces="git" {{ dotfiles_signing_key }}' }
   loop_control:
     label: "{{ item.dest }}"
@@ -55,5 +67,5 @@
 
 - name: Warn that commit signing isn't set up yet
   ansible.builtin.debug:
-    msg: rbw's SSH agent has no key (rbw not logged in or locked); re-run ./run.sh user after unlocking rbw
+    msg: "The {{ password_manager | default('1password') }} SSH agent has no key (not running, locked, or the agent is off); re-run ./run.sh user once it serves the key"
   when: dotfiles_agent_keys.rc != 0
