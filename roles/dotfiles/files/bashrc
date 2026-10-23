@@ -202,15 +202,9 @@ tmux() {
         bash -lc 'cd "$1" 2>/dev/null; shift; exec tmux "$@"' _ "$PWD" "$@"
 }
 
-# SSH keys come from rbw's agent (bitwarden apx subsystem). apx-vso-native has its own
-# /run/user, so it reaches the host's through /run/host.
-for __sock in /run/user/1000/rbw/ssh-agent-socket /run/host/run/user/1000/rbw/ssh-agent-socket; do
-    if [[ -S $__sock ]]; then
-        export SSH_AUTH_SOCK=$__sock
-        break
-    fi
-done
-unset __sock
+# SSH keys come from the password manager's agent (1Password or rbw, password_manager in the
+# workstation repo's vars.yml); the dotfiles role writes the socket lookup
+[[ -r /home/tharpem/.config/ssh-agent.bash ]] && . /home/tharpem/.config/ssh-agent.bash
 
 # Host packages (Vanilla OS host, via ABRoot; changes take effect after a reboot)
 #   host-install <pkg...>  -> add packages to the host image and apply

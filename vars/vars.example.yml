@@ -104,8 +104,10 @@ gnome_custom_keybindings:
   - name: Edit last screenshot
     command: "{{ local_home }}/.local/bin/screenshot-edit"
     binding: <Shift><Alt>5
-  - name: Bitwarden quick access
-    command: "{{ local_home }}/.local/bin/rbw-quick-access"
+  # Quick access for password_manager. Wayland gives apps no global shortcuts, so GNOME
+  # opens 1Password's Quick Access, or the rbw-quick-access window
+  - name: Quick access
+    command: "{{ local_home }}/.local/bin/{{ '1password-desktop --quick-access' if password_manager == '1password' else 'rbw-quick-access' }}"
     binding: <Control><Shift>space
   # The dock's MST monitors sometimes stay dark after the screens power off
   - name: Reset dock monitors
@@ -120,11 +122,20 @@ electron_apps_repo: https://github.com/mtharpe/electron-apps.git
 electron_apps_checkout: "{{ local_home }}/src/github/mtharpe/electron-apps"
 electron_apps: [gmail, google-calendar, google-tasks, google-keep, google-messages, messenger]
 
-# rbw (Bitwarden CLI) for quick access, in apx-bitwarden
+
+# rbw (Bitwarden CLI) for quick access, in apx-bitwarden (password_manager: bitwarden)
 rbw_quick_access_repo: https://github.com/mtharpe/rbw-quick-access.git
 rbw_quick_access_upstream: https://git.forgeserv.cloud/oitsjustjose/rbw-quick-access
 rbw_quick_access_checkout: "{{ local_home }}/src/github/mtharpe/rbw-quick-access"
 rbw_version: 1.15.0
+
+# Password manager for SSH keys, git signing and Ctrl+Shift+Space quick access:
+#   1password  1Password's SSH agent and Quick Access (apx-1password); Bitwarden is a client only
+#   bitwarden  rbw's SSH agent and the rbw-quick-access fork (apx-bitwarden); rbw is logged in
+#              by hand (README)
+# Keep the matching subsystem in apx_subsystems. Switching: re-run ./run.sh user containers, then
+# log out and back in.
+password_manager: 1password
 
 # apx subsystems: name -> custom home (no home: shares the host $HOME)
 apx_subsystems:
@@ -134,6 +145,8 @@ apx_subsystems:
     home: "{{ local_home }}/.apx-homes/claude-personal"
   - name: bitwarden
     home: "{{ local_home }}/.apx-homes/bitwarden"
+  - name: 1password
+    home: "{{ local_home }}/.apx-homes/1password"
   - name: ansible
 
 # Bluetooth headsets: WirePlumber codec profile and latency offset (ms, may be negative) that keep

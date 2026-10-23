@@ -1,0 +1,19 @@
+{% if password_manager | default('1password') == '1password' %}
+# Use 1Password's SSH agent (1Password runs in the 1password apx subsystem and serves the
+# vault's SSH keys; it asks before a new app uses one). The socket is in that subsystem's
+# home, which has the same path on the host and in every apx container.
+{% else %}
+# Use rbw's SSH agent (rbw-agent runs in the bitwarden apx subsystem and serves the vault's
+# SSH keys; a locked vault asks for the master password). The socket is under the host's
+# /run/user/1000, which apx-vso-native only sees as /run/host/run/user/1000.
+{% endif %}
+# Absolute paths: each apx container has its own $HOME, so ~ would point somewhere else.
+{% for sock in ssh_agent_sockets[:-1] %}
+Match exec "test -S {{ sock }}"
+    IdentityAgent {{ sock }}
+
+{% endfor %}
+Host *
+    IdentityAgent {{ ssh_agent_sockets[-1] }}
+    UserKnownHostsFile {{ local_home }}/.ssh/known_hosts
+    StrictHostKeyChecking no

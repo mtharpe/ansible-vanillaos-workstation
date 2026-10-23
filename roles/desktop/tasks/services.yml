@@ -46,13 +46,21 @@
     - apx-autoconfig.service
     - podman.socket
 
-# SSH keys live only in the vault: rbw's agent is the session's SSH_AUTH_SOCK (apps and the
-# apx containers inherit it), and the GNOME (gcr) and OpenSSH agents are masked
-- name: Point the session at rbw's SSH agent
-  ansible.builtin.copy:
-    src: environment.d/90-rbw-ssh-agent.conf
-    dest: "{{ local_home }}/.config/environment.d/90-rbw-ssh-agent.conf"
+# SSH keys live only in the vault: the password manager's agent (1Password or rbw) is the
+# session's SSH_AUTH_SOCK (apps and the apx containers inherit it), and the GNOME (gcr) and
+# OpenSSH agents are masked
+- name: Point the session at the password manager's SSH agent
+  ansible.builtin.template:
+    src: 90-ssh-agent.conf.j2
+    dest: "{{ local_home }}/.config/environment.d/90-ssh-agent.conf"
     mode: "0644"
+
+# Left by earlier versions, which named the file after the agent
+- name: Remove the old session agent settings
+  ansible.builtin.file:
+    path: "{{ local_home }}/.config/environment.d/{{ item }}"
+    state: absent
+  loop: [90-rbw-ssh-agent.conf, 90-1password-ssh-agent.conf]
 
 - name: Mask the other SSH agents
   ansible.builtin.systemd_service:

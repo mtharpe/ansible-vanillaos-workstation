@@ -10,3 +10,6 @@
 
 - name: Bitwarden unlock with system authentication
   ansible.builtin.import_tasks: bitwarden.yml
+
+- name: 1Password unlock with system authentication
+  ansible.builtin.import_tasks: onepassword.yml

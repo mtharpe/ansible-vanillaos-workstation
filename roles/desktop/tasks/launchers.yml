@@ -15,14 +15,28 @@
     - update-craft-apps
     - screenshot-edit
     - screenshots-tidy
-    - rbw-quick-access
-    - ssh-keygen-bitwarden
     - apx-autoconfig
     - displays-reset
     - bitwarden-desktop
+    - 1password-desktop
     - zoom-bt-mic
     - bt-av-resync
     - xcursor-refresh
+
+# Git's ssh-keygen wrapper, pointed at the chosen password manager's agent
+- name: Install the git signing wrapper
+  ansible.builtin.template:
+    src: ssh-keygen-agent.j2
+    dest: "{{ local_home }}/.local/bin/ssh-keygen-agent"
+    mode: "0755"
+
+# Bitwarden quick access (the rbw-quick-access fork), only with password_manager: bitwarden
+- name: Install the Bitwarden quick access launcher
+  ansible.builtin.copy:
+    src: bin/rbw-quick-access
+    dest: "{{ local_home }}/.local/bin/rbw-quick-access"
+    mode: "0755"
+  when: password_manager | default('1password') == 'bitwarden'
 
 - name: Install menu entries
   ansible.builtin.copy:
@@ -31,6 +45,7 @@
     mode: "0644"
   loop:
     - bitwarden-apx.desktop
+    - 1password-apx.desktop
     - claude-desktop-launcher.desktop
     - zed-launcher.desktop
 
@@ -50,11 +65,14 @@
     src: autostart/{{ item }}
     dest: "{{ local_home }}/.config/autostart/{{ item }}"
     mode: "0644"
-  loop:
-    - rbw-quick-access.desktop
-    - com.nextcloud.desktopclient.nextcloud.desktop
-    # Bitwarden desktop, hidden to tray: the browser extension's biometric unlock needs it running
-    - bitwarden-apx.desktop
+  loop: "{{ ['com.nextcloud.desktopclient.nextcloud.desktop'] + desktop_password_manager_autostart[password_manager | default('1password')] }}"
+
+# The other password manager's entries, so switching password_manager leaves one running
+- name: Remove the other password manager's autostart entries
+  ansible.builtin.file:
+    path: "{{ local_home }}/.config/autostart/{{ item }}"
+    state: absent
+  loop: "{{ desktop_password_manager_autostart.values() | flatten | difference(desktop_password_manager_autostart[password_manager | default('1password')]) }}"
 
 # One Zed config shared by every apx profile: each container's ~/.config/zed links here
 # (apx_container role). Seeded only, since Zed rewrites settings.json from its UI.
