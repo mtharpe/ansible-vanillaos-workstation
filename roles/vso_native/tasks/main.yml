@@ -37,6 +37,13 @@
     mode: "0644"
     backup: true
 
+# Used by the tmux split bindings: splits a pane into the apx subsystem it has entered
+- name: Install tmux-split
+  ansible.builtin.copy:
+    src: tmux-split
+    dest: "{{ local_home }}/.local/bin/tmux-split"
+    mode: "0755"
+
 # TPM loads tmux-sensible itself, but only once it's installed (prefix + I); clone both so a
 # fresh machine starts out configured
 - name: Install tmux plugins

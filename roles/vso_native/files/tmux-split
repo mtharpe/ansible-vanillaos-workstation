@@ -1,0 +1,48 @@
+#!/bin/bash
+# tmux-split -h|-v PANE_PID PANE_PATH
+# Split the current tmux pane. If that pane has entered another apx subsystem (apx NAME enter,
+# distrobox enter, distrobox-enter -n, or the claude/ansible wrappers in .bashrc), the new pane
+# enters the same subsystem; leaving it drops back to the apx-vso-native shell like the original.
+dir=$1 pid=$2 path=$3
+
+# Container named by the first descendant of $pid that enters one (breadth-first)
+container_of() {
+    local queue=("$1") p args name
+    while ((${#queue[@]})); do
+        p=${queue[0]} queue=("${queue[@]:1}")
+        mapfile -d '' args < "/proc/$p/cmdline" 2>/dev/null
+        name=""
+        for ((i = 0; i < ${#args[@]}; i++)); do
+            case "${args[i]##*/}" in
+                distrobox-enter)
+                    for ((j = i + 1; j < ${#args[@]}; j++)); do
+                        [[ ${args[j]} == -n || ${args[j]} == --name ]] && { name=${args[j+1]}; break; }
+                        [[ ${args[j]} == -- ]] && break
+                    done ;;
+                distrobox)
+                    [[ ${args[i+1]} == enter ]] && for ((j = i + 2; j < ${#args[@]}; j++)); do
+                        [[ ${args[j]} == -- ]] && break
+                        [[ ${args[j]} == -n || ${args[j]} == --name ]] && { name=${args[j+1]}; break; }
+                        [[ ${args[j]} != -* ]] && { name=${args[j]}; break; }
+                    done ;;
+                apx)
+                    [[ ${args[i+2]} == enter ]] && name=apx-${args[i+1]} ;;
+            esac
+            [[ -n $name ]] && break
+        done
+        if [[ -n $name ]]; then
+            printf '%s\n' "$name"
+            return
+        fi
+        queue+=($(pgrep -P "$p"))
+    done
+}
+
+name=$(container_of "$pid")
+if [[ -z $name || $name == "${CONTAINER_ID:-}" ]]; then
+    exec tmux split-window "$dir" -c "$path"
+fi
+
+printf -v enter '%q ' host-shell /usr/share/apx/distrobox/distrobox-enter -n "$name" -- \
+    bash -lc 'cd "$1" 2>/dev/null; exec bash -l' _ "$path"
+exec tmux split-window "$dir" -c "$path" "$enter; exec bash -l"
