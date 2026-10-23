@@ -30,16 +30,8 @@
   become: true
   when: apx_python3_apt.stdout == 'installed' or not ansible_check_mode
 
-# The host has no xdg-open, so links and sign-ins opened from here go to the host's gio
 - name: Open URLs on the host
-  ansible.builtin.copy:
-    content: |
-      #!/bin/sh
-      # Open URLs/files on the host. Vanilla OS host has no xdg-open, so use gio.
-      exec /usr/bin/distrobox-host-exec gio open "$@"
-    dest: /usr/local/bin/xdg-open
-    mode: "0755"
-  become: true
+  ansible.builtin.import_tasks: xdg_open.yml
 
 - name: Install the claude CLI
   ansible.builtin.shell: set -o pipefail && curl -fsSL https://claude.ai/install.sh | bash

@@ -99,3 +99,6 @@
     - { key: pinentry, value: pinentry-keyring }
     - { key: lock_timeout, value: "2592000" }
   changed_when: false
+
+- name: Open URLs on the host
+  ansible.builtin.import_tasks: xdg_open.yml
