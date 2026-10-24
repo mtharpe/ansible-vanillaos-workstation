@@ -28,6 +28,9 @@
 
 # podman.socket: the Docker API for the docker CLI in the dev subsystems (devops_tools).
 # apx-autoconfig: runs the containers play on each newly created apx subsystem.
+# twingate-desktop-notifier: the package leaves it disabled, and without it nothing shows
+# the "Additional authentication required" prompts, so MFA-gated resources stay Pending
+# and their traffic is held.
 - name: Enable user services
   ansible.builtin.systemd_service:
     name: "{{ item }}"
@@ -45,6 +48,7 @@
     - xcursor-refresh.service
     - apx-autoconfig.service
     - podman.socket
+    - twingate-desktop-notifier.service
 
 # SSH keys live only in the vault: the password manager's agent (1Password or rbw) is the
 # session's SSH_AUTH_SOCK (apps and the apx containers inherit it), and the GNOME (gcr) and
