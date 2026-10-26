@@ -11,6 +11,17 @@
   become: true
   when: apx_python3_apt.stdout == 'installed' or not ansible_check_mode
 
+# The OS-made container isn't started with podman's host time zone mount, and its own
+# /etc/localtime ended up on UTC (2026-10-21); point it at the host's so it follows every
+# time zone change (the host root is at /run/host)
+- name: Follow the host's time zone
+  ansible.builtin.file:
+    src: /run/host/etc/localtime
+    dest: /etc/localtime
+    state: link
+    force: true
+  become: true
+
 # Claude Desktop runs from the claude-work/claude-personal subsystems; an early copy here was
 # dropped
 - name: Remove Claude Desktop
