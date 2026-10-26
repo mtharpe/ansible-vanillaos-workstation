@@ -72,6 +72,7 @@ flatpak_apps:
   - net.nokyan.Resources
   - org.gnome.Boxes
   - be.alexandervanhee.gradia
+  - io.github.maniacx.BudsLink
   - org.onlyoffice.desktopeditors
   - us.zoom.Zoom
 
