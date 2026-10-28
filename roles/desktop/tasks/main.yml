@@ -11,7 +11,7 @@
 - name: Flatpak apps and overrides
   ansible.builtin.import_tasks: flatpak.yml
 
-- name: Bluetooth headset codec and latency offset
+- name: Bluetooth headset buttons, codec and latency offset
   ansible.builtin.import_tasks: bluetooth_audio.yml
 
 - name: GNOME extensions and settings

@@ -1,4 +1,14 @@
 ---
+# mpris-proxy passes headset buttons to media players as MPRIS calls. Multipoint earbuds
+# also send a pause when the phone plays any sound, so YouTube kept stopping at random.
+# Masked, so headset play/pause no longer controls the laptop.
+- name: Stop headset buttons from pausing media players
+  ansible.builtin.systemd_service:
+    name: mpris-proxy.service
+    scope: user
+    masked: true
+    state: stopped
+
 # Bluetooth headsets: the A2DP codec profile, and a latency offset so Chrome keeps video
 # in sync (with Opus the Pixel Buds reported no delay; with SBC-XQ they over-report it).
 # WirePlumber keeps both only in its state files, keyed by the Bluetooth address: its
