@@ -95,7 +95,8 @@
     src: autostart/{{ item }}
     dest: "{{ local_home }}/.config/autostart/{{ item }}"
     mode: "0644"
-  loop: "{{ ['com.nextcloud.desktopclient.nextcloud.desktop'] + desktop_password_manager_autostart[password_manager | default('1password')] }}"
+  # BudsLink starts windowless; the Bluetooth Battery Meter extension keeps it running
+  loop: "{{ ['com.nextcloud.desktopclient.nextcloud.desktop', 'io.github.maniacx.BudsLink.desktop'] + desktop_password_manager_autostart[password_manager | default('1password')] }}"
 
 # The other password manager's entries, so switching password_manager leaves one running
 - name: Remove the other password manager's autostart entries

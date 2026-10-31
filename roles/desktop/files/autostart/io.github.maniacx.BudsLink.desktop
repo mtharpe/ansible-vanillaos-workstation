@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=BudsLink
+Comment=Start BudsLink without a window for the Bluetooth Battery Meter extension
+Exec=/usr/bin/flatpak run --branch=stable --arch=x86_64 --command=/app/bin/budslink io.github.maniacx.BudsLink --gapplication-service
+Icon=io.github.maniacx.BudsLink
+Terminal=false
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Delay=5
+X-Flatpak=io.github.maniacx.BudsLink
