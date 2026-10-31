@@ -25,8 +25,9 @@
     dest: "{{ local_home }}/.local/share/flatpak/overrides/"
     mode: "0644"
 
-# Bitwarden extension <-> desktop app (biometric unlock) in every Chrome profile: Chrome
-# reads native messaging hosts per user data dir, so one manifest covers all profiles.
+# Bitwarden extension <-> desktop app (biometric unlock) in every Chrome profile, with
+# password_manager: bitwarden. Chrome reads native messaging hosts per user data dir, so
+# one manifest covers all profiles.
 - name: Create Chrome's native messaging host dir
   ansible.builtin.file:
     path: "{{ desktop_chrome_nm_dir }}"
@@ -38,12 +39,21 @@
     src: bitwarden/bitwarden-native-messaging
     dest: "{{ desktop_chrome_nm_dir }}/bitwarden-native-messaging"
     mode: "0755"
+  when: password_manager | default('1password') == 'bitwarden'
 
 - name: Register the Bitwarden native messaging host
   ansible.builtin.template:
     src: com.8bit.bitwarden.json.j2
     dest: "{{ desktop_chrome_nm_dir }}/com.8bit.bitwarden.json"
     mode: "0644"
+  when: password_manager | default('1password') == 'bitwarden'
+
+- name: Remove the Bitwarden native messaging host
+  ansible.builtin.file:
+    path: "{{ desktop_chrome_nm_dir }}/{{ item }}"
+    state: absent
+  loop: [bitwarden-native-messaging, com.8bit.bitwarden.json]
+  when: password_manager | default('1password') != 'bitwarden'
 
 # Same for the 1Password extension: it shows the app's sign-in and lock state, and unlocks
 # with it. The container side (chrome-flatpak, the allowlist) is in apx_container.

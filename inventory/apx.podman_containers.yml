@@ -2,17 +2,16 @@
 # the desktop user (sudo inside is passwordless). Running ones only; containers.yml starts
 # the stopped ones first. Group by name:
 #   apx          all of them: common packages, links to the host home (apx_container)
-#   apx_dev      all but the password managers: the DevOps toolset (devops_tools)
+#   apx_dev      all but Bitwarden: the DevOps toolset (devops_tools)
 #   apx_claude   claude-*: Claude Desktop, claude CLI, Zed
-#   apx_bitwarden, apx_1password, apx_vso   their own extras
+#   apx_bitwarden, apx_vso   their own extras
 plugin: containers.podman.podman_containers
 label_selectors:
   manager: apx
 group_by_image: false
 groups:
   apx: true
-  apx_dev: podman_container_name not in ['apx-bitwarden', 'apx-1password']
+  apx_dev: podman_container_name != 'apx-bitwarden'
   apx_claude: podman_container_name is match('apx-claude-')
   apx_bitwarden: podman_container_name == 'apx-bitwarden'
-  apx_1password: podman_container_name == 'apx-1password'
   apx_vso: podman_container_name == 'apx-vso-native'

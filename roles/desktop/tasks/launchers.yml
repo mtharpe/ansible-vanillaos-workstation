@@ -17,7 +17,6 @@
     - screenshots-tidy
     - apx-autoconfig
     - displays-reset
-    - bitwarden-desktop
     - 1password-desktop
     - zoom-bt-mic
     - bt-av-resync
@@ -30,24 +29,44 @@
     dest: "{{ local_home }}/.local/bin/ssh-keygen-agent"
     mode: "0755"
 
-# Bitwarden quick access (the rbw-quick-access fork), only with password_manager: bitwarden
-- name: Install the Bitwarden quick access launcher
+# Bitwarden desktop and quick access (the rbw-quick-access fork), both in apx-bitwarden:
+# only with password_manager: bitwarden, removed otherwise
+- name: Install the Bitwarden launchers
   ansible.builtin.copy:
-    src: bin/rbw-quick-access
-    dest: "{{ local_home }}/.local/bin/rbw-quick-access"
+    src: bin/{{ item }}
+    dest: "{{ local_home }}/.local/bin/{{ item }}"
     mode: "0755"
+  loop: [bitwarden-desktop, rbw-quick-access]
   when: password_manager | default('1password') == 'bitwarden'
+
+- name: Remove the Bitwarden launchers
+  ansible.builtin.file:
+    path: "{{ local_home }}/{{ item }}"
+    state: absent
+  loop:
+    - .local/bin/bitwarden-desktop
+    - .local/bin/rbw-quick-access
+    - .local/share/applications/bitwarden-apx.desktop
+    - .local/share/icons/hicolor/256x256/apps/bitwarden.png
+    - .apx-homes/install-bitwarden.sh
+  when: password_manager | default('1password') != 'bitwarden'
 
 - name: Install menu entries
   ansible.builtin.copy:
     src: applications/{{ item }}
     dest: "{{ local_home }}/.local/share/applications/{{ item }}"
     mode: "0644"
+  loop: "{{ ['1password.desktop', 'claude-desktop-launcher.desktop', 'zed-launcher.desktop']
+            + (['bitwarden-apx.desktop'] if password_manager | default('1password') == 'bitwarden' else []) }}"
+
+# Left by the earlier apx-1password setup
+- name: Remove the old 1Password entries
+  ansible.builtin.file:
+    path: "{{ local_home }}/{{ item }}"
+    state: absent
   loop:
-    - bitwarden-apx.desktop
-    - 1password-apx.desktop
-    - claude-desktop-launcher.desktop
-    - zed-launcher.desktop
+    - .local/share/applications/1password-apx.desktop
+    - .config/autostart/1password-apx.desktop
 
 # Edited key by key: apps add their own entries to this file
 - name: Register URL scheme handlers
@@ -58,7 +77,16 @@
     value: "{{ item.value }}"
     no_extra_spaces: true
     mode: "0644"
-  loop: "{{ desktop_url_handlers | dict2items }}"
+  loop: "{{ (desktop_url_handlers | combine(desktop_bitwarden_url_handlers if password_manager | default('1password') == 'bitwarden' else {})) | dict2items }}"
+
+- name: Remove the Bitwarden URL handler
+  community.general.ini_file:
+    path: "{{ local_home }}/.config/mimeapps.list"
+    section: Default Applications
+    option: "{{ item }}"
+    state: absent
+  loop: "{{ desktop_bitwarden_url_handlers.keys() | list }}"
+  when: password_manager | default('1password') != 'bitwarden'
 
 - name: Install login autostart entries
   ansible.builtin.copy:
