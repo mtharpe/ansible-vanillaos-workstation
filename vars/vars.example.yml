@@ -168,3 +168,10 @@ bt_audio_devices:
     address: "XX:XX:XX:XX:XX:XX"
     profile: a2dp-sink-sbc
     latency_offset_ms: -100
+
+# YubiKey on the lock screen (system role). One line per key, from:
+#   pamu2fcfg -u "$USER" -o pam://tharpem-laptop -i pam://tharpem-laptop
+# Empty list = not set up. Disk unlock at boot is enrolled by hand (README).
+yubikey_u2f_origin: pam://tharpem-laptop
+yubikey_u2f_keys: []
+#  - "you:KEYHANDLE,PUBKEY,es256,+presence"

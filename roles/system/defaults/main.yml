@@ -1,3 +1,10 @@
 ---
 # Gitignored, next to vars/vars.yml
 system_ca_path: "{{ playbook_dir }}/vars/{{ custom_ca_cert }}"
+
+# Debian's libpam-u2f build (snapshot URLs stay valid after sid moves on)
+yubikey_pam_u2f_debs:
+  - url: https://snapshot.debian.org/archive/debian/20261030T000000Z/pool/main/p/pam-u2f/libpam-u2f_1.4.0-3%2Bb2_amd64.deb
+    sha256: 8564e71b7c58eb3b770f2c95eed6fafe18ad53b69ca3fe943b7cb0ec8c8adece
+  - url: https://snapshot.debian.org/archive/debian/20261030T000000Z/pool/main/p/pam-u2f/pamu2fcfg_1.4.0-3%2Bb2_amd64.deb
+    sha256: 2272af0f397938067198fb2df2246074549c4e2d77d318ed3b893392cae9816b
