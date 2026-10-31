@@ -35,6 +35,10 @@ desktop_url_handlers:
 # dconf values are GVariant text, so strings carry their own quotes
 desktop_dconf:
   /org/gnome/shell/enabled-extensions: "[{% for e in gnome_enabled_extensions %}'{{ e }}'{{ ', ' if not loop.last }}{% endfor %}]"
+  # Location services, so GNOME's automatic time zone (on by default) can follow the laptop;
+  # timezone-on-wake re-checks after every resume
+  /org/gnome/system/location/enabled: "true"
+  /org/gnome/desktop/datetime/automatic-timezone: "true"
   /org/gnome/desktop/interface/icon-theme: "'Hatter-Blue'"
   /org/gnome/desktop/interface/accent-color: "'blue'"
   # No spinner cursor while apps load (see appearance.yml)

@@ -1,0 +1,11 @@
+[Unit]
+Description=Set the time zone from the laptop's location at login and after every wake
+After=graphical-session.target
+
+[Service]
+ExecStart=%h/.local/bin/timezone-on-wake
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=graphical-session.target

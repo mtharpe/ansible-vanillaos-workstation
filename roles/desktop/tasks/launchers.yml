@@ -21,6 +21,7 @@
     - zoom-bt-mic
     - bt-av-resync
     - xcursor-refresh
+    - timezone-on-wake
 
 # Git's ssh-keygen wrapper, pointed at the chosen password manager's agent
 - name: Install the git signing wrapper

@@ -1,0 +1,154 @@
+#!/usr/bin/env python3
+"""Set the time zone from where the laptop is, at login and every time it wakes.
+
+GNOME's automatic time zone only moves when geoclue reports a new location, which can lag
+after a suspend in another city. This looks the zone up and sets it through timedated
+(timedatectl; a polkit rule allows it without a password) when it differs:
+
+the access points NetworkManager sees are located by Google's Geolocation API (key in
+~/.config/timezone-on-wake/google-api-key), or by BeaconDB (what geoclue uses) without a key
+or a Google fix, and the fix is mapped to the nearest city's zone with libgweather (what
+GNOME uses). Public-IP lookups aren't used: ISPs' address blocks get placed in the wrong
+city (2026-10-24 in Central time: four services said Pigeon Forge, TN, Eastern; two said
+Lebanon, TN).
+
+With no fix the current zone is kept.
+
+Environment:
+  TZ_WAIT_SECONDS  how long to keep retrying after a wake while the network comes up (default 120)
+"""
+import json
+import os
+import subprocess
+import time
+import urllib.request
+
+import gi
+
+gi.require_version("GWeather", "4.0")
+from gi.repository import GWeather  # noqa: E402
+
+WAIT_SECONDS = float(os.environ.get("TZ_WAIT_SECONDS", "120"))
+RETRY_SECONDS = 10
+KEY_FILE = os.path.expanduser("~/.config/timezone-on-wake/google-api-key")
+GOOGLE = "https://www.googleapis.com/geolocation/v1/geolocate?key="
+BEACONDB = "https://api.beacondb.net/v1/geolocate"
+# A fix worse than this (metres) could be in the next zone over
+MAX_ACCURACY = 20000
+
+
+def log(msg):
+    print(msg, flush=True)
+
+
+def fetch(url, body=None):
+    headers = {"User-Agent": "timezone-on-wake"}
+    if body is not None:
+        headers["Content-Type"] = "application/json"
+        body = json.dumps(body).encode()
+    req = urllib.request.Request(url, body, headers)
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        return json.load(resp)
+
+
+def valid(zone):
+    return bool(zone) and ".." not in zone and os.path.isfile(f"/usr/share/zoneinfo/{zone}")
+
+
+def scan():
+    out = subprocess.run(["nmcli", "-t", "-e", "no", "-f", "BSSID,SIGNAL", "dev", "wifi", "list"],
+                         capture_output=True, text=True).stdout
+    aps = []
+    for line in out.splitlines():
+        mac, _, signal = line.rpartition(":")
+        if mac and signal.isdigit():
+            # nmcli reports 0-100 %; the APIs want dBm
+            aps.append({"macAddress": mac.lower(), "signalStrength": int(signal) // 2 - 100})
+    return aps
+
+
+def services():
+    try:
+        with open(KEY_FILE) as f:
+            key = f.read().strip()
+    except FileNotFoundError:
+        key = ""
+    if key:
+        yield "google", GOOGLE + key
+    yield "beacondb", BEACONDB
+
+
+def lookup():
+    """Zone name, or None when there's no fix yet."""
+    aps = scan()
+    if len(aps) < 2:
+        log(f"wifi: {len(aps)} access points; waiting")
+        return None
+    for name, url in services():
+        try:
+            fix = fetch(url, {"considerIp": False, "wifiAccessPoints": aps})
+        except Exception as e:  # 404: no fix for these access points
+            log(f"{name}: {e}")
+            continue
+        accuracy = fix.get("accuracy", MAX_ACCURACY + 1)
+        if accuracy > MAX_ACCURACY:
+            log(f"{name}: fix too coarse ({accuracy} m)")
+            continue
+        city = GWeather.Location.get_world().find_nearest_city(fix["location"]["lat"], fix["location"]["lng"])
+        zone = city.get_timezone().get_identifier()
+        log(f"{name}: near {city.get_name()} ({round(accuracy)} m): {zone}")
+        if valid(zone):
+            return zone
+    return None
+
+
+def current():
+    out = subprocess.run(["timedatectl", "show", "-p", "Timezone", "--value"],
+                         capture_output=True, text=True)
+    return out.stdout.strip()
+
+
+def notify(zone):
+    subprocess.run(["gdbus", "call", "--session", "--dest", "org.freedesktop.Notifications",
+                    "--object-path", "/org/freedesktop/Notifications",
+                    "--method", "org.freedesktop.Notifications.Notify",
+                    "Time zone", "0", "preferences-system-time", "Time zone changed",
+                    f"Now {zone}", "[]", "{}", "int32 -1"],
+                   capture_output=True)
+
+
+def check():
+    deadline = time.monotonic() + WAIT_SECONDS
+    while (zone := lookup()) is None:
+        if time.monotonic() > deadline:
+            log("no time zone found; keeping the current one")
+            return
+        time.sleep(RETRY_SECONDS)
+    was = current()
+    if zone == was:
+        log(f"time zone unchanged: {zone}")
+        return
+    res = subprocess.run(["timedatectl", "--no-ask-password", "set-timezone", zone],
+                         capture_output=True, text=True)
+    if res.returncode == 0:
+        log(f"time zone {was} -> {zone}")
+        notify(zone)
+    else:
+        log(f"setting {zone} failed: {res.stderr.strip()}")
+
+
+def main():
+    check()
+    # logind signals PrepareForSleep(false) when the system has resumed
+    mon = subprocess.Popen(["gdbus", "monitor", "--system", "--dest", "org.freedesktop.login1",
+                            "--object-path", "/org/freedesktop/login1"],
+                           stdout=subprocess.PIPE, text=True)
+    for line in mon.stdout:
+        if "PrepareForSleep (false" in line:
+            log("resumed")
+            check()
+    raise SystemExit(f"gdbus monitor exited ({mon.wait()})")
+
+
+if __name__ == "__main__":
+    main()
