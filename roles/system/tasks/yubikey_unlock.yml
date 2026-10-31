@@ -1,0 +1,76 @@
+# Touch the YubiKey to unlock the GNOME lock screen; the password still works. pam_u2f isn't in
+# the image (and /usr is read-only), so Debian's build is unpacked into /usr/local and PAM loads
+# it by path. The gate only lets it run while the user's session is locked, so the first login
+# after boot still takes the password (which unlocks the keyring).
+# The boot-time disk unlock is a LUKS keyslot, enrolled by hand with yubikey-enroll-disk (README).
+- name: Install the disk enrollment script
+  ansible.builtin.copy:
+    src: yubikey-enroll-disk
+    dest: /usr/local/sbin/yubikey-enroll-disk
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: YubiKey unlock
+  when: yubikey_u2f_keys | default([]) | length > 0
+  block:
+    - name: Download pam_u2f and pamu2fcfg
+      ansible.builtin.get_url:
+        url: "{{ item.url }}"
+        dest: /var/cache/{{ item.url | basename | urldecode }}
+        checksum: sha256:{{ item.sha256 }}
+        mode: "0644"
+      loop: "{{ yubikey_pam_u2f_debs }}"
+      loop_control:
+        label: "{{ item.url | basename | urldecode }}"
+      register: system_u2f_debs
+
+    - name: Check for the installed module
+      ansible.builtin.stat:
+        path: /usr/local/lib/security/pam_u2f.so
+      register: system_u2f_so
+
+    - name: Unpack them into /usr/local
+      ansible.builtin.shell: |
+        set -euo pipefail
+        w=$(mktemp -d); trap 'rm -rf "$w"' EXIT
+        for d in {{ system_u2f_debs.results | map(attribute='dest') | map('quote') | join(' ') }}; do
+          ar p "$d" data.tar.xz | tar -xJ -C "$w"
+        done
+        install -D -m 0644 "$w/usr/lib/x86_64-linux-gnu/security/pam_u2f.so" /usr/local/lib/security/pam_u2f.so
+        install -D -m 0755 "$w/usr/bin/pamu2fcfg" /usr/local/bin/pamu2fcfg
+      when: system_u2f_debs is changed or not system_u2f_so.stat.exists
+      args:
+        executable: /bin/bash
+      changed_when: true
+
+    - name: Install the locked-session gate
+      ansible.builtin.copy:
+        src: yubikey-unlock-gate
+        dest: /usr/local/libexec/yubikey-unlock-gate
+        owner: root
+        group: root
+        mode: "0755"
+
+    # Root-owned, so nothing running as the user can add a key
+    - name: Install the registered keys
+      ansible.builtin.copy:
+        content: "{{ yubikey_u2f_keys | join('\n') }}\n"
+        dest: /etc/security/u2f_keys
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Try the YubiKey before the password on the lock screen
+      vars:
+        system_u2f_args: >-
+          authfile=/etc/security/u2f_keys origin={{ yubikey_u2f_origin }} appid={{ yubikey_u2f_origin }}
+          cue [cue_prompt=Touch your YubiKey to unlock] nouserok
+      ansible.builtin.blockinfile:
+        path: /etc/pam.d/gdm-password
+        marker: "# yubikey-unlock {mark}"
+        insertbefore: "^@include common-auth"
+        backup: true
+        block: |
+          auth	[success=ignore default=1]	pam_exec.so quiet /usr/local/libexec/yubikey-unlock-gate
+          auth	sufficient	/usr/local/lib/security/pam_u2f.so {{ system_u2f_args }}

@@ -1,0 +1,9 @@
+#!/bin/sh
+# pam_exec gate for gdm-password: succeed only when PAM_USER has a locked session, so the
+# YubiKey can unlock the screen but the first login after boot still takes the password
+# (which unlocks the GNOME keyring).
+[ -n "$PAM_USER" ] || exit 1
+for s in $(loginctl show-user "$PAM_USER" -P Sessions 2>/dev/null); do
+    [ "$(loginctl show-session "$s" -P LockedHint 2>/dev/null)" = yes ] && exit 0
+done
+exit 1

@@ -16,3 +16,6 @@
 
 - name: Time zone changes without a password
   ansible.builtin.import_tasks: timezone.yml
+
+- name: YubiKey unlocks the lock screen
+  ansible.builtin.import_tasks: yubikey_unlock.yml

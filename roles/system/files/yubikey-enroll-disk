@@ -1,0 +1,17 @@
+#!/bin/sh
+# Add the YubiKey (FIDO2, touch only, no PIN) as an extra keyslot on the encrypted /var volume.
+# The passphrase keyslot stays; at boot either works. Run from a terminal:
+#   host-shell pkexec /usr/local/sbin/yubikey-enroll-disk
+set -eu
+DEV=/dev/mapper/vos--var-var
+echo "== Current keyslots/tokens:"
+cryptsetup luksDump "$DEV" | sed -n '/^Keyslots:/,/^Digests:/p' | grep -E '^\s+[0-9]+: |^Tokens|systemd-'
+echo
+echo "== Enrolling: type your DISK passphrase, then touch the YubiKey when it blinks (maybe twice)."
+systemd-cryptenroll --fido2-device=auto --fido2-with-client-pin=no --fido2-with-user-presence=yes "$DEV"
+echo
+echo "== Test 1: YubiKey alone. Touch it when it blinks."
+cryptsetup open --test-passphrase --token-only "$DEV" && echo "PASS: YubiKey unlocks the disk"
+echo
+echo "== Test 2: the boot path (password piped in from Plymouth, here empty). Touch it again."
+if printf '' | cryptsetup luksOpen --test-passphrase "$DEV"; then echo "PASS: boot path tries the YubiKey"; else echo "FAIL: boot path did not use the YubiKey"; fi
