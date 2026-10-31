@@ -18,7 +18,8 @@ or sshd**. So:
   Debian/Ubuntu-based (everything is apt).
 - What's shared vs. per subsystem: tools are installed in each subsystem (same set everywhere,
   except Bitwarden and 1Password skip the DevOps set) plus the static binaries in the host `~/.local/bin`. A
-  subsystem with its own home includes the host `.bashrc`, `.gitconfig` and `~/.ssh/config`.
+  subsystem with its own home includes the host `.bashrc` and `.gitconfig`, and its `~/.ssh` is a
+  symlink to the host's (one SSH config, known_hosts and signing key everywhere).
   Logins are per home and never linked: gh's account file, `~/.docker`, and the cloud CLIs
   (`~/.aws`, `~/.config/gcloud`, `~/.azure`, `~/.kube`, `~/.terraform.d`). Make work and
   personal subsystems with separate homes (`apx subsystems new -n <name> -s ubuntu -H
