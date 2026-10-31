@@ -13,3 +13,6 @@
 
 - name: 1Password unlock with system authentication
   ansible.builtin.import_tasks: onepassword.yml
+
+- name: Time zone changes without a password
+  ansible.builtin.import_tasks: timezone.yml

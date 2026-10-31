@@ -132,6 +132,11 @@ rbw_quick_access_upstream: https://git.forgeserv.cloud/oitsjustjose/rbw-quick-ac
 rbw_quick_access_checkout: "{{ local_home }}/src/github/mtharpe/rbw-quick-access"
 rbw_version: 1.15.0
 
+# Google Geolocation API key (Cloud console: enable "Geolocation API", create an API key
+# restricted to it) for timezone-on-wake, which sets the time zone from the nearby Wi-Fi
+# after every wake. Empty: BeaconDB only, which has no data in some places.
+google_geolocation_api_key: ""
+
 # Password manager for SSH keys, git signing and Ctrl+Shift+Space quick access:
 #   1password  1Password's SSH agent and Quick Access (on the host); Bitwarden is a client only
 #   bitwarden  rbw's SSH agent and the rbw-quick-access fork (apx-bitwarden); rbw is logged in

@@ -1,0 +1,9 @@
+// Let {{ local_user }} change the time zone without a password prompt, only from an active local
+// session: GNOME's automatic time zone and the timezone-on-wake user service set it through
+// timedated, which otherwise asks for admin authentication (and fails silently for GNOME).
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.timedate1.set-timezone" &&
+        subject.user == "{{ local_user }}" && subject.local && subject.active) {
+        return polkit.Result.YES;
+    }
+});

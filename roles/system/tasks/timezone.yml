@@ -1,0 +1,9 @@
+# The time zone follows the laptop: GNOME's automatic time zone (geoclue) and the
+# timezone-on-wake user service (desktop role) both set it without a password prompt
+- name: Let the desktop user set the time zone
+  ansible.builtin.template:
+    src: 49-timezone.rules.j2
+    dest: /etc/polkit-1/rules.d/49-timezone.rules
+    owner: root
+    group: root
+    mode: "0644"

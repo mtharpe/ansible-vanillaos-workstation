@@ -16,6 +16,7 @@
     - zoom-bt-mic.service
     - bt-av-resync.service
     - xcursor-refresh.service
+    - timezone-on-wake.service
     - apx-autoconfig.service
 
 # The Twingate notifier (unit installed by the system role) opens the sign-in page via
@@ -25,6 +26,23 @@
     src: systemd/twingate-notifier-browser.conf
     dest: "{{ local_home }}/.config/systemd/user/twingate-desktop-notifier.service.d/browser.conf"
     mode: "0644"
+
+# timezone-on-wake locates the laptop with Google's Geolocation API when it has a key
+# (google_geolocation_api_key in vars.yml), else BeaconDB only
+- name: Create the timezone-on-wake config dir
+  ansible.builtin.file:
+    path: "{{ local_home }}/.config/timezone-on-wake"
+    state: directory
+    mode: "0700"
+  when: google_geolocation_api_key | default('') | length > 0
+
+- name: Install the Geolocation API key
+  ansible.builtin.copy:
+    content: "{{ google_geolocation_api_key }}\n"
+    dest: "{{ local_home }}/.config/timezone-on-wake/google-api-key"
+    mode: "0600"
+  no_log: true
+  when: google_geolocation_api_key | default('') | length > 0
 
 # podman.socket: the Docker API for the docker CLI in the dev subsystems (devops_tools).
 # apx-autoconfig: runs the containers play on each newly created apx subsystem.
@@ -46,6 +64,7 @@
     - zoom-bt-mic.service
     - bt-av-resync.service
     - xcursor-refresh.service
+    - timezone-on-wake.service
     - apx-autoconfig.service
     - podman.socket
     - twingate-desktop-notifier.service
