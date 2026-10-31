@@ -90,6 +90,7 @@ gnome_enabled_extensions:
   - appindicatorsupport@rgcjonas.gmail.com
   - twingate-panel@mtharpe
   - quiet-screenshots@mtharpe
+  - banner-only-notifications@mtharpe
 
 # Dev checkout to symlink as the extension; if it doesn't exist, main is downloaded instead
 twingate_panel_checkout: "{{ local_home }}/src/github/mtharpe/twingate-panel"

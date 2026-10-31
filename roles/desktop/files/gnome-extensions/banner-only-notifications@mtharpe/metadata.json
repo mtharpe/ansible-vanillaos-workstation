@@ -1,0 +1,8 @@
+{
+  "uuid": "banner-only-notifications@mtharpe",
+  "name": "Banner-Only Notifications",
+  "description": "Pick apps whose notifications still pop up as banners but aren't kept in the notification list.",
+  "shell-version": ["50"],
+  "settings-schema": "org.gnome.shell.extensions.banner-only-notifications",
+  "version": 1
+}
