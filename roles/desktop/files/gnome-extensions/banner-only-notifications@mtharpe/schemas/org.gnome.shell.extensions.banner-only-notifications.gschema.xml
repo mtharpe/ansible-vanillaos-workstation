@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.banner-only-notifications"
+          path="/org/gnome/shell/extensions/banner-only-notifications/">
+    <key name="apps" type="as">
+      <default>['com.slack.Slack']</default>
+      <summary>Banner-only apps</summary>
+      <description>App IDs (desktop file name without .desktop) whose notifications pop up but are removed once the banner goes away.</description>
+    </key>
+  </schema>
+</schemalist>

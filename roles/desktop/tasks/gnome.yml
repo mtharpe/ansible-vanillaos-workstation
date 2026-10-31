@@ -80,6 +80,11 @@
   args:
     creates: "{{ desktop_extensions_dir }}/twingate-panel@mtharpe/schemas/gschemas.compiled"
 
+- name: Compile banner-only-notifications settings schema
+  ansible.builtin.command: glib-compile-schemas {{ desktop_extensions_dir }}/banner-only-notifications@mtharpe/schemas
+  args:
+    creates: "{{ desktop_extensions_dir }}/banner-only-notifications@mtharpe/schemas/gschemas.compiled"
+
 - name: Apply GNOME settings
   community.general.dconf:
     key: "{{ item.key }}"
