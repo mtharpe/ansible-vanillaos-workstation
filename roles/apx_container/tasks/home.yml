@@ -1,14 +1,15 @@
 ---
-# A subsystem with its own home shares the host home's shell, git and SSH settings by
-# including them (managed blocks, so the subsystem can still add its own). Logins stay per
+# A subsystem with its own home shares the host home's shell and git settings by including
+# them (managed blocks, so the subsystem can still add its own), and uses the host ~/.ssh
+# itself (a symlink). Logins stay per
 # home: gh's hosts.yml, ~/.docker, and the cloud CLIs (~/.aws, ~/.config/gcloud, ~/.azure,
 # ~/.kube, ~/.terraform.d) are never linked, so work and personal keep separate accounts.
 
-# A path in this home can already lead to the host's file (claude-work's ~/.ssh is a symlink
-# to the host ~/.ssh); writing an include there would make the host file include itself
+# A path in this home can already lead to the host's file (a linked ~/.ssh, or a linked
+# dotfile); writing an include there would make the host file include itself
 - name: Resolve the shared files
   ansible.builtin.command: realpath -m {{ apx_home }}/{{ item }}
-  loop: [.bashrc, .gitconfig, .ssh/config]
+  loop: [.bashrc, .gitconfig]
   register: apx_home_paths
   changed_when: false
   check_mode: false
@@ -46,20 +47,23 @@
       	path = {{ local_home }}/.gitconfig
   when: "'.gitconfig' not in apx_home_is_host"
 
-- name: Create .ssh
-  ansible.builtin.file:
+# One ~/.ssh everywhere: the host's config (1Password or rbw agent, known_hosts) and git's
+# signing key + allowed_signers. Keys never live there (they're in the password manager's
+# agent), and every subsystem runs as the same user, so ssh's permission checks pass.
+- name: Check this home's .ssh
+  ansible.builtin.stat:
     path: "{{ apx_home }}/.ssh"
-    state: directory
-    mode: "0700"
+  register: apx_home_ssh
 
-# ssh_config takes the first value it sees, so the include goes first too
-- name: Include the host SSH config
-  ansible.builtin.blockinfile:
-    path: "{{ apx_home }}/.ssh/config"
-    create: true
-    mode: "0600"
-    insertbefore: BOF
-    marker: "# {mark} host SSH config"
-    block: |
-      Include {{ local_home }}/.ssh/config
-  when: "'.ssh/config' not in apx_home_is_host"
+# Earlier setups made a .ssh holding only an Include of the host config; keep it aside
+- name: Move this home's own .ssh aside
+  ansible.builtin.command: mv {{ apx_home }}/.ssh {{ apx_home }}/.ssh.pre-link
+  args:
+    creates: "{{ apx_home }}/.ssh.pre-link"
+  when: apx_home_ssh.stat.exists and apx_home_ssh.stat.isdir and not apx_home_ssh.stat.islnk
+
+- name: Link the host .ssh
+  ansible.builtin.file:
+    src: "{{ local_home }}/.ssh"
+    dest: "{{ apx_home }}/.ssh"
+    state: link
