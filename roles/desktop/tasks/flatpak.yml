@@ -16,13 +16,30 @@
 # Wayland everywhere it works: Slack and MeshLab are moved onto it here, Zoom below.
 #  Left on X11: Nextcloud (with Wayland its tray menu opens mid-screen), Bambu Studio
 #  (Flathub ships it X11-only; its 3D view misbehaves on Wayland), OnlyOffice (no
-#  Wayland support in its bundled Qt).
+#  Wayland support in its bundled Qt), Chrome (flag file below).
 # global: cursor theme path for every app (freedesktop runtimes ship no cursors), so X11
 #  apps find Adwaita-NoBusy instead of falling back to the huge core cursor.
 - name: Install Flatpak overrides
   ansible.builtin.copy:
     src: flatpak-overrides/
     dest: "{{ local_home }}/.local/share/flatpak/overrides/"
+    mode: "0644"
+
+# Chrome on X11. On Wayland it can't see workspaces, so a link from another app goes to the
+# profile's last-focused window of any kind. When that is an app, pop-up or
+# picture-in-picture window, the link opens in a new window instead of a new tab. On X11 it
+# picks the last normal window on the current workspace. A flag, not removing the Wayland
+# socket: Chrome then still picks Wayland (from the session type) and exits at startup.
+- name: Create Chrome's config dir
+  ansible.builtin.file:
+    path: "{{ local_home }}/.var/app/com.google.Chrome/config"
+    state: directory
+    mode: "0755"
+
+- name: Run Chrome on X11
+  ansible.builtin.copy:
+    src: chrome-flags.conf
+    dest: "{{ local_home }}/.var/app/com.google.Chrome/config/chrome-flags.conf"
     mode: "0644"
 
 # Bitwarden extension <-> desktop app (biometric unlock) in every Chrome profile, with
