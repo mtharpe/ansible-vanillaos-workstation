@@ -1,0 +1,68 @@
+#!/usr/bin/python3
+"""Take a screenshot, then open it in Gradia (bound to the keyboard's screenshot key).
+
+GNOME's screenshot UI comes up through the desktop portal. Portal screenshots are saved
+in ~/Pictures, so the file is moved into ~/Pictures/Screenshots (named like GNOME's own)
+before Gradia opens it. Cancelling the screenshot opens nothing.
+"""
+import os
+import shutil
+import sys
+import time
+from urllib.parse import unquote, urlparse
+
+import gi
+
+gi.require_version("Gio", "2.0")
+from gi.repository import Gio, GLib
+
+PORTAL = "org.freedesktop.portal.Desktop"
+DEST = os.path.expanduser("~/Pictures/Screenshots")
+
+
+def move_into_screenshots(path):
+    os.makedirs(DEST, exist_ok=True)
+    if os.path.dirname(path) == DEST:
+        return path
+    stamp = time.strftime("%Y-%m-%d %H-%M-%S", time.localtime(os.path.getmtime(path)))
+    target = os.path.join(DEST, f"Screenshot From {stamp}.png")
+    n = 1
+    while os.path.exists(target):
+        target = os.path.join(DEST, f"Screenshot From {stamp}-{n}.png")
+        n += 1
+    shutil.move(path, target)
+    return target
+
+
+def main():
+    bus = Gio.bus_get_sync(Gio.BusType.SESSION)
+    loop = GLib.MainLoop()
+    result = {}
+
+    sender = bus.get_unique_name()[1:].replace(".", "_")
+    token = f"capture_edit_{os.getpid()}"
+    handle = f"/org/freedesktop/portal/desktop/request/{sender}/{token}"
+
+    def on_response(_bus, _sender, _path, _iface, _signal, params):
+        response, results = params.unpack()
+        if response == 0:
+            result["uri"] = results.get("uri")
+        loop.quit()
+
+    bus.signal_subscribe(PORTAL, "org.freedesktop.portal.Request", "Response", handle,
+                         None, Gio.DBusSignalFlags.NO_MATCH_RULE, on_response)
+    bus.call_sync(PORTAL, "/org/freedesktop/portal/desktop", "org.freedesktop.portal.Screenshot",
+                  "Screenshot",
+                  GLib.Variant("(sa{sv})", ("", {"handle_token": GLib.Variant("s", token),
+                                                 "interactive": GLib.Variant("b", True)})),
+                  GLib.VariantType("(o)"), Gio.DBusCallFlags.NONE, -1, None)
+    loop.run()
+
+    if not result.get("uri"):
+        return 0
+    path = move_into_screenshots(unquote(urlparse(result["uri"]).path))
+    os.execvp("flatpak", ["flatpak", "run", "be.alexandervanhee.gradia", path])
+
+
+if __name__ == "__main__":
+    sys.exit(main())

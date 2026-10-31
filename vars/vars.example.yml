@@ -119,6 +119,11 @@ gnome_custom_keybindings:
   - name: Reset dock monitors (hard)
     command: "{{ local_home }}/.local/bin/displays-reset --hard"
     binding: <Super><Alt><Shift>d
+  # The keyboard's screenshot key (F8) sends Super+Shift+S, the Windows snip shortcut:
+  # take a screenshot, then edit it in Gradia
+  - name: Screenshot and edit
+    command: "{{ local_home }}/.local/bin/screenshot-capture-edit"
+    binding: <Shift><Super>s
 
 # Standalone web apps from github.com/mtharpe/electron-apps, built in apx-vso-native
 electron_apps_repo: https://github.com/mtharpe/electron-apps.git
