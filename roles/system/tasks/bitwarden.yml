@@ -1,5 +1,5 @@
 # Bitwarden desktop's "unlock with system authentication" (used by the browser extension's
-# biometric unlock) needs this polkit action. The app's own setup writes it to /usr/share,
+# biometric unlock) needs this polkit action, with password_manager: bitwarden. The app's own setup writes it to /usr/share,
 # which is read-only here; polkitd also reads /usr/local/share/polkit-1/actions.
 - name: Install the Bitwarden polkit policy
   ansible.builtin.copy:
@@ -8,5 +8,12 @@
     owner: root
     group: root
     mode: "0644"
+  when: password_manager | default('1password') == 'bitwarden'
   # polkitd doesn't notice an actions dir created after it started
   notify: Restart polkit
+
+- name: Remove the Bitwarden polkit policy
+  ansible.builtin.file:
+    path: /usr/local/share/polkit-1/actions/com.bitwarden.Bitwarden.policy
+    state: absent
+  when: password_manager | default('1password') != 'bitwarden'

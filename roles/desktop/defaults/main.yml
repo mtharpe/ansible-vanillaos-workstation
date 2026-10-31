@@ -20,14 +20,17 @@ desktop_chrome_nm_dir: "{{ local_home }}/.var/app/com.google.Chrome/config/googl
 #  bitwarden: Bitwarden quick access hidden, which keeps rbw's SSH agent up, and Bitwarden
 #   desktop hidden to tray, for the browser extension's biometric unlock
 desktop_password_manager_autostart:
-  1password: [1password-apx.desktop]
+  1password: [1password.desktop]
   bitwarden: [rbw-quick-access.desktop, bitwarden-apx.desktop]
 
-desktop_url_handlers:
+# Added with password_manager: bitwarden, removed otherwise
+desktop_bitwarden_url_handlers:
   x-scheme-handler/bitwarden: bitwarden-apx.desktop
+
+desktop_url_handlers:
   x-scheme-handler/claude: claude-desktop-launcher.desktop
-  x-scheme-handler/onepassword: 1password-apx.desktop
-  x-scheme-handler/onepassword8: 1password-apx.desktop
+  x-scheme-handler/onepassword: 1password.desktop
+  x-scheme-handler/onepassword8: 1password.desktop
 
 # dconf values are GVariant text, so strings carry their own quotes
 desktop_dconf:

@@ -86,11 +86,20 @@
     value: "{{ item.value }}"
   loop: "{{ desktop_dconf | dict2items }}"
 
+# Entries with a password_manager key exist only with that password manager
+- name: Pick the custom keyboard shortcuts
+  ansible.builtin.set_fact:
+    desktop_keybindings: "{{ desktop_keybindings | default([]) + [item] }}"
+  loop: "{{ gnome_custom_keybindings }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.password_manager | default(password_manager | default('1password')) == password_manager | default('1password')
+
 - name: Define custom keyboard shortcuts
   community.general.dconf:
-    key: "{{ desktop_keybinding_path }}/custom{{ gnome_custom_keybindings.index(item.0) }}/{{ item.1 }}"
+    key: "{{ desktop_keybinding_path }}/custom{{ desktop_keybindings.index(item.0) }}/{{ item.1 }}"
     value: "'{{ item.0[item.1] }}'"
-  loop: "{{ gnome_custom_keybindings | product(['name', 'command', 'binding']) }}"
+  loop: "{{ desktop_keybindings | product(['name', 'command', 'binding']) }}"
   loop_control:
     label: "{{ item.0.name }} {{ item.1 }}"
 
@@ -98,7 +107,7 @@
   community.general.dconf:
     key: "{{ desktop_keybinding_path }}"
     value: >-
-      [{% for kb in gnome_custom_keybindings %}'{{ desktop_keybinding_path }}/custom{{ loop.index0 }}/'{{ ', ' if not loop.last }}{% endfor %}]
+      [{% for kb in desktop_keybindings %}'{{ desktop_keybinding_path }}/custom{{ loop.index0 }}/'{{ ', ' if not loop.last }}{% endfor %}]
 
 # The terminal's "vso" profile names its container by podman ID, which changes whenever
 # apx-vso-native is recreated (e.g. on a rebuild)

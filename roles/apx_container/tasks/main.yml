@@ -70,10 +70,6 @@
   ansible.builtin.import_tasks: bitwarden.yml
   when: "'apx_bitwarden' in group_names"
 
-- name: 1Password setup
-  ansible.builtin.import_tasks: onepassword.yml
-  when: "'apx_1password' in group_names"
-
 # gh comes from GitHub's apt repo (the distro one lags far behind)
 - name: Add the GitHub CLI apt key
   ansible.builtin.get_url:
