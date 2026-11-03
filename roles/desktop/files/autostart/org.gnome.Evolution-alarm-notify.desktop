@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Events and Tasks Reminders
+Exec=/usr/libexec/evolution-data-server/evolution-alarm-notify
+Hidden=true
+# Turned off for this user: GNOME Calendar (gnome-calendar-zoom) shows the reminders instead,
+# with snooze in the notification. Delete this file to bring the old reminders back.

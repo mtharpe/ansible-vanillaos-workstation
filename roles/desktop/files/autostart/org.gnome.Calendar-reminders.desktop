@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Calendar Reminders
+Comment=GNOME Calendar in the background, for event reminders (gnome-calendar-zoom)
+Icon=org.gnome.Calendar
+Exec=flatpak run org.gnome.Calendar --gapplication-service
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
