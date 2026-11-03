@@ -55,11 +55,11 @@ desktop_dconf:
   /org/gnome/mutter/experimental-features: "['scale-monitor-framebuffer']"
   # Each app's home workspace. Not Zoom: every window it opens (reactions, chat pop-ups,
   # meeting notices) was moved to its workspace and focused there, switching the desktop
-  # to Zoom's main window mid-meeting
+  # to Zoom's main window mid-meeting. Not the electron-apps (Gmail, Calendar, Keep, Tasks,
+  # Messages, Messenger) either: with workspaces on the primary display only, workspace 1
+  # pinned them to the main monitor; they now reopen where they were left (window-place).
   /org/gnome/shell/extensions/auto-move-windows/application-list: >-
     ['com.google.Chrome.desktop:2', 'org.gnome.Ptyxis.desktop:3',
-    'google-messages.desktop:1', 'messenger.desktop:1', 'gmail.desktop:1',
-    'google-calendar.desktop:1', 'google-tasks.desktop:1', 'google-keep.desktop:1',
     'zed-launcher.desktop:3', 'claude-desktop-launcher.desktop:3']
   /org/gnome/Ptyxis/use-system-font: "false"
   /org/gnome/Ptyxis/font-name: "'JetBrainsMono Nerd Font Mono 14'"
