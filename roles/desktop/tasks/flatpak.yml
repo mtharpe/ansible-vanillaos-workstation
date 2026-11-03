@@ -12,23 +12,23 @@
   args:
     creates: "{{ local_home }}/.local/share/flatpak/app/co.hyprlab.Hylki"
 
-# Hatter has no Hylki or GNOME Calendar icon of their own that looks like Google's; user copies
-# of their launchers (they shadow the Flatpak exports) use Hatter's Gmail and Google Calendar
-# icons. Regenerated from the exports, so Exec stays current.
-- name: Give Hylki and GNOME Calendar the Gmail and Google Calendar icons
+# Hatter has no Hylki icon; a user copy of its launcher (it shadows the Flatpak's export)
+# points at Hatter's standard mail-app icon. Regenerated from the export, so Exec stays current.
+- name: Give Hylki the icon theme's mail-app icon
   ansible.builtin.shell: |
     set -eu
-    src={{ local_home }}/.local/share/flatpak/exports/share/applications/{{ item.app }}.desktop
-    dst={{ local_home }}/.local/share/applications/{{ item.app }}.desktop
-    sed 's/^Icon=.*/Icon={{ item.icon }}/' "$src" > "$dst.tmp"
+    src={{ local_home }}/.local/share/flatpak/exports/share/applications/co.hyprlab.Hylki.desktop
+    dst={{ local_home }}/.local/share/applications/co.hyprlab.Hylki.desktop
+    sed 's/^Icon=.*/Icon=internet-mail/' "$src" > "$dst.tmp"
     if cmp -s "$dst.tmp" "$dst"; then rm "$dst.tmp"; echo same; else mv "$dst.tmp" "$dst"; echo changed; fi
-  loop:
-    - {app: co.hyprlab.Hylki, icon: gmail}
-    - {app: org.gnome.Calendar, icon: google-calendar}
-  loop_control:
-    label: "{{ item.app }}"
-  register: desktop_app_icons
-  changed_when: "'changed' in desktop_app_icons.stdout"
+  register: desktop_hylki_icon
+  changed_when: "'changed' in desktop_hylki_icon.stdout"
+
+# GNOME Calendar keeps its own icon (Hatter's calendar page); drop the earlier Google one
+- name: Remove the GNOME Calendar launcher copy
+  ansible.builtin.file:
+    path: "{{ local_home }}/.local/share/applications/org.gnome.Calendar.desktop"
+    state: absent
 
 # ArtCraft's Craft apps (open-source Adobe-suite rebuilds and more) ship only as Flatpak
 # bundles on GitHub; update-craft-apps installs them and its weekly timer keeps them current
