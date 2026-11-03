@@ -1,0 +1,7 @@
+{
+  "uuid": "calendar-reminders@mtharpe",
+  "name": "Calendar Reminder Snooze",
+  "description": "Snooze GNOME Calendar reminders from the notification itself: pick 5, 10, 15 or 30 minutes, an hour, when the event starts, or a custom time.",
+  "shell-version": ["50"],
+  "version": 1
+}

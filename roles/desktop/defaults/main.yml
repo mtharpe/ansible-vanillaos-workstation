@@ -31,6 +31,7 @@ desktop_url_handlers:
   x-scheme-handler/claude: claude-desktop-launcher.desktop
   x-scheme-handler/onepassword: 1password.desktop
   x-scheme-handler/onepassword8: 1password.desktop
+  x-scheme-handler/mailto: co.hyprlab.Hylki.desktop
 
 # dconf values are GVariant text, so strings carry their own quotes
 desktop_dconf:

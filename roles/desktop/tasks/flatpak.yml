@@ -5,6 +5,25 @@
     method: user
     remote: flathub
 
+# Hylki (Rust/GNOME mail client with a unified inbox) is not on Flathub; it installs from its
+# own signed repository via its flatpakref, which also adds that remote for updates.
+- name: Install Hylki
+  ansible.builtin.command: flatpak install --user -y --noninteractive --from https://hylki.hyprlab.co/flatpak/co.hyprlab.Hylki.flatpakref
+  args:
+    creates: "{{ local_home }}/.local/share/flatpak/app/co.hyprlab.Hylki"
+
+# Hatter has no Hylki icon; a user copy of its launcher (it shadows the Flatpak's export)
+# points at Hatter's Mail icon. Regenerated from the export, so Exec stays current.
+- name: Give Hylki the icon theme's Mail icon
+  ansible.builtin.shell: |
+    set -eu
+    src={{ local_home }}/.local/share/flatpak/exports/share/applications/co.hyprlab.Hylki.desktop
+    dst={{ local_home }}/.local/share/applications/co.hyprlab.Hylki.desktop
+    sed 's/^Icon=.*/Icon=Mail/' "$src" > "$dst.tmp"
+    if cmp -s "$dst.tmp" "$dst"; then rm "$dst.tmp"; echo same; else mv "$dst.tmp" "$dst"; echo changed; fi
+  register: desktop_hylki_icon
+  changed_when: "'changed' in desktop_hylki_icon.stdout"
+
 # ArtCraft's Craft apps (open-source Adobe-suite rebuilds and more) ship only as Flatpak
 # bundles on GitHub; update-craft-apps installs them and its weekly timer keeps them current
 - name: Install the Craft apps
