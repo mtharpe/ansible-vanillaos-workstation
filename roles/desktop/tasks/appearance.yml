@@ -21,6 +21,20 @@
   args:
     creates: "{{ local_home }}/.local/share/icons/Hatter-Blue/index.theme"
 
+# Local icons laid over Hatter (update-hatter-icons re-applies them after each update):
+# GNOME Calendar's calendar page in Hatter-Blue's blues instead of purple
+- name: Install local Hatter icon overrides
+  ansible.builtin.copy:
+    src: icons-overrides/
+    dest: "{{ local_home }}/.local/share/icons-overrides/"
+    mode: "0644"
+    directory_mode: "0755"
+  register: desktop_icon_overrides
+
+- name: Apply local Hatter icon overrides
+  ansible.builtin.command: "{{ local_home }}/.local/bin/update-hatter-icons --overrides"
+  when: desktop_icon_overrides.changed
+
 # GNOME has no setting to turn off the busy (spinner) cursor. Adwaita-NoBusy is Adwaita
 # with the busy cursors pointing at the normal arrow; selected via desktop_dconf.
 # It's a full copy, not links into /usr/share/icons/Adwaita: in a Flatpak sandbox that

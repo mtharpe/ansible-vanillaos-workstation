@@ -1,17 +1,35 @@
 #!/usr/bin/env bash
 # Update the Hatter icon theme (https://github.com/Mibea/Hatter) in ~/.local/share/icons.
 # Skips the download when upstream hasn't changed since the last install.
-# Usage: update-hatter-icons [--force]
+# Usage: update-hatter-icons [--force | --overrides]   (--overrides: only re-apply local icons)
 set -euo pipefail
 
 REPO=Mibea/Hatter
 DEST="$HOME/.local/share/icons"
 STATE_DIR="$HOME/.local/state/hatter-update"
+# Local additions laid over a theme after each install, e.g. a blue calendar in Hatter-Blue:
+# icons-overrides/<theme>/scalable/apps/<name>.svg
+OVERRIDES="$HOME/.local/share/icons-overrides"
 SHA_FILE="$STATE_DIR/installed-sha"
 THEMES=(Hatter Hatter-Blue Hatter-Green Hatter-Orange Hatter-Pink Hatter-Purple
         Hatter-Red Hatter-Slate Hatter-Teal Hatter-Yellow Hatter-Yaru)
 
 mkdir -p "$STATE_DIR" "$DEST"
+
+apply_overrides() {
+  local t=$1
+  [[ -d "$OVERRIDES/$t" ]] || return 0
+  cp -a "$OVERRIDES/$t/." "$DEST/$t/"
+}
+
+if [[ "${1:-}" == --overrides ]]; then
+  for t in "${THEMES[@]}"; do
+    [[ -d "$OVERRIDES/$t" && -d "$DEST/$t" ]] || continue
+    apply_overrides "$t"
+    gtk-update-icon-cache -f -q "$DEST/$t" 2>/dev/null || rm -f "$DEST/$t/.icon-theme.cache"
+  done
+  exit 0
+fi
 
 latest=$(curl -fsSL -H 'Accept: application/vnd.github.sha' \
   "https://api.github.com/repos/$REPO/commits/HEAD")
@@ -39,6 +57,7 @@ for t in "${THEMES[@]}"; do
   find "$DEST/.$t.new" -name '*.sh' -delete   # developer recolor scripts, not icons
   rm -rf "$DEST/$t"
   mv "$DEST/.$t.new" "$DEST/$t"
+  apply_overrides "$t"
   # The base theme's cache can't be rebuilt (filenames with spaces); keep the shipped one.
   gtk-update-icon-cache -f -q "$DEST/$t" 2>/dev/null || rm -f "$DEST/$t/.icon-theme.cache"
 done
