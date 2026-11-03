@@ -30,6 +30,83 @@
     path: "{{ local_home }}/.local/share/applications/org.gnome.Calendar.desktop"
     state: absent
 
+# GNOME Calendar with guests, Zoom meetings, people lookup and reminders you snooze from the
+# notification (github.com/mtharpe/gnome-calendar-zoom). Built from source into a local Flatpak
+# repository and made the current Calendar; Flathub's stays installed as the fallback
+# (flatpak make-current --user org.gnome.Calendar stable). Built once; rebuild by hand.
+- name: Check for the custom GNOME Calendar
+  ansible.builtin.command: flatpak info --user org.gnome.Calendar//master
+  register: desktop_gcal_custom
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Build and install the custom GNOME Calendar
+  when: desktop_gcal_custom.rc != 0
+  block:
+    - name: Install the Flatpak builder and the GNOME 51 SDK
+      ansible.builtin.command: >-
+        flatpak install --user -y --noninteractive flathub
+        org.flatpak.Builder org.gnome.Sdk//51 org.gnome.Platform//51
+      register: desktop_gcal_sdk
+      changed_when: "'Nothing to do' not in desktop_gcal_sdk.stdout"
+
+    - name: Create the custom GNOME Calendar source dir
+      ansible.builtin.file:
+        path: "{{ gnome_calendar_zoom_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Download the custom GNOME Calendar source
+      ansible.builtin.unarchive:
+        src: "{{ gnome_calendar_zoom_tarball }}"
+        dest: "{{ gnome_calendar_zoom_dir }}"
+        remote_src: true
+        extra_opts: [--strip-components=1]
+
+    - name: Build the custom GNOME Calendar (takes a while)
+      ansible.builtin.command: ./build.sh
+      args:
+        chdir: "{{ gnome_calendar_zoom_dir }}"
+      async: 7200
+      poll: 30
+
+    - name: Add the custom GNOME Calendar's local repository
+      ansible.builtin.command: >-
+        flatpak remote-add --user --if-not-exists --no-gpg-verify
+        gnome-calendar-zoom file://{{ gnome_calendar_zoom_dir }}/repo
+
+    - name: Install the custom GNOME Calendar
+      ansible.builtin.command: flatpak install --user -y --noninteractive gnome-calendar-zoom org.gnome.Calendar//master
+
+    - name: Make the custom GNOME Calendar the one that runs
+      ansible.builtin.command: flatpak make-current --user org.gnome.Calendar master
+
+- name: Check the custom GNOME Calendar again
+  ansible.builtin.command: flatpak info --user org.gnome.Calendar//master
+  register: desktop_gcal_custom
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# Reminders: the custom Calendar runs in the background and replaces evolution-alarm-notify
+# (whose reminders open a separate window). Only with the custom build installed; without it,
+# the old reminders stay on, so there are always reminders.
+- name: Turn reminders over to the custom GNOME Calendar
+  ansible.builtin.copy:
+    src: autostart/{{ item }}
+    dest: "{{ local_home }}/.config/autostart/{{ item }}"
+    mode: "0644"
+  loop: [org.gnome.Calendar-reminders.desktop, org.gnome.Evolution-alarm-notify.desktop]
+  when: desktop_gcal_custom.rc == 0
+
+- name: Keep the standard reminders without the custom GNOME Calendar
+  ansible.builtin.file:
+    path: "{{ local_home }}/.config/autostart/{{ item }}"
+    state: absent
+  loop: [org.gnome.Calendar-reminders.desktop, org.gnome.Evolution-alarm-notify.desktop]
+  when: desktop_gcal_custom.rc != 0
+
 # ArtCraft's Craft apps (open-source Adobe-suite rebuilds and more) ship only as Flatpak
 # bundles on GitHub; update-craft-apps installs them and its weekly timer keeps them current
 - name: Install the Craft apps

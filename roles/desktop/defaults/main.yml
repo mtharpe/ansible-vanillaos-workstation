@@ -78,3 +78,7 @@ desktop_dconf:
 desktop_wp_state: "{{ local_home }}/.local/state/wireplumber"
 # Bluetooth headsets' codec profile and latency offset (set in vars/vars.yml)
 bt_audio_devices: []
+
+# Custom GNOME Calendar (github.com/mtharpe/gnome-calendar-zoom), built from this source
+gnome_calendar_zoom_tarball: https://codeload.github.com/mtharpe/gnome-calendar-zoom/tar.gz/refs/heads/main
+gnome_calendar_zoom_dir: "{{ local_home }}/.cache/gnome-calendar-zoom"
