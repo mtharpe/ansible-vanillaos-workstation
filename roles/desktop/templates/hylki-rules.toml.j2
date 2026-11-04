@@ -1,7 +1,7 @@
-# Hylki mail rules wanted on every account listed in hylki_meeting_reply_accounts.
+# Hylki mail rules wanted on every account listed in hylki_mail_rule_accounts.
 # hylki-ensure-rules adds each one to Hylki's filters.toml unless a rule with the same name and
 # account is already there, so rules changed or added in Hylki's Settings are left alone.
-{% for email in hylki_meeting_reply_accounts %}
+{% for email in hylki_mail_rule_accounts %}
 # --- rule
 # Calendar replies ("Accepted: …", "Declined: …") are only status noise: mark read and archive.
 # The body check keeps ordinary mail with such a subject out.
@@ -20,4 +20,28 @@ mark_read = true
 field = "body"
 matcher = "contains"
 value = "has accepted this invitation, has declined this invitation, has tentatively accepted this invitation"
+
+# --- rule
+# Zoom's "Your meeting - … has been deleted" receipts (including the ones for meetings the
+# calendar's Zoom button cleans up): to Trash, which Gmail empties after 30 days.
+[[rules]]
+name = "Zoom deleted-meeting notices"
+account_email = "{{ email }}"
+field = "from_address"
+matcher = "equals"
+value = "no-reply@zoom.us"
+dest_path = "[Gmail]/Trash"
+tag = ""
+count_unread = false
+mark_read = true
+
+[[rules.more]]
+field = "subject"
+matcher = "starts_with"
+value = "Your meeting - "
+
+[[rules.more]]
+field = "subject"
+matcher = "ends_with"
+value = "has been deleted"
 {% endfor %}
