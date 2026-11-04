@@ -1,0 +1,23 @@
+# Hylki mail rules wanted on every account listed in hylki_meeting_reply_accounts.
+# hylki-ensure-rules adds each one to Hylki's filters.toml unless a rule with the same name and
+# account is already there, so rules changed or added in Hylki's Settings are left alone.
+{% for email in hylki_meeting_reply_accounts %}
+# --- rule
+# Calendar replies ("Accepted: …", "Declined: …") are only status noise: mark read and archive.
+# The body check keeps ordinary mail with such a subject out.
+[[rules]]
+name = "Meeting replies"
+account_email = "{{ email }}"
+field = "subject"
+matcher = "starts_with"
+value = "Accepted:, Declined:, Tentatively accepted:, Tentative:"
+dest_path = "[Gmail]/All Mail"
+tag = ""
+count_unread = false
+mark_read = true
+
+[[rules.more]]
+field = "body"
+matcher = "contains"
+value = "has accepted this invitation, has declined this invitation, has tentatively accepted this invitation"
+{% endfor %}

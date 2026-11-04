@@ -179,3 +179,8 @@ bt_audio_devices:
 yubikey_u2f_origin: pam://my-laptop
 yubikey_u2f_keys: []
 #  - "you:KEYHANDLE,PUBKEY,es256,+presence"
+
+# Hylki accounts whose calendar replies ("Accepted: …", "Declined: …") are marked read and archived
+hylki_meeting_reply_accounts:
+  - you@example.com
+  - you@work.example

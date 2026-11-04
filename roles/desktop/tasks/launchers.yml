@@ -23,6 +23,7 @@
     - bt-av-resync
     - xcursor-refresh
     - timezone-on-wake
+    - hylki-ensure-rules
 
 # Git's ssh-keygen wrapper, pointed at the chosen password manager's agent
 - name: Install the git signing wrapper

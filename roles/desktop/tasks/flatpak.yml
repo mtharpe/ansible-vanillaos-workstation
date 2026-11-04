@@ -13,16 +13,33 @@
     creates: "{{ local_home }}/.local/share/flatpak/app/co.hyprlab.Hylki"
 
 # Hatter has no Hylki icon; a user copy of its launcher (it shadows the Flatpak's export)
-# points at Hatter's standard mail-app icon. Regenerated from the export, so Exec stays current.
-- name: Give Hylki the icon theme's mail-app icon
+# points at Hatter's standard mail-app icon and calls it "Mail" (the [Desktop Entry] name only;
+# the New Message action keeps its own). Regenerated from the export, so Exec stays current.
+- name: Call Hylki "Mail" and give it the icon theme's mail-app icon
   ansible.builtin.shell: |
     set -eu
     src={{ local_home }}/.local/share/flatpak/exports/share/applications/co.hyprlab.Hylki.desktop
     dst={{ local_home }}/.local/share/applications/co.hyprlab.Hylki.desktop
-    sed 's/^Icon=.*/Icon=internet-mail/' "$src" > "$dst.tmp"
+    sed -e 's/^Icon=.*/Icon=internet-mail/' -e '1,/^\[Desktop Action/ s/^Name=.*/Name=Mail/' "$src" > "$dst.tmp"
     if cmp -s "$dst.tmp" "$dst"; then rm "$dst.tmp"; echo same; else mv "$dst.tmp" "$dst"; echo changed; fi
   register: desktop_hylki_icon
   changed_when: "'changed' in desktop_hylki_icon.stdout"
+
+# Hylki mail rules (filters.toml): meeting replies ("Accepted: …", "Declined: …") are marked read
+# and archived on each account in hylki_meeting_reply_accounts (vars.yml). Rules are only added
+# when missing, so changes made in Hylki's Settings stay.
+- name: Write the wanted Hylki mail rules
+  ansible.builtin.template:
+    src: hylki-meeting-replies.toml.j2
+    dest: "{{ local_home }}/.local/share/hylki-rules.toml"
+    mode: "0600"
+  when: hylki_meeting_reply_accounts | default([]) | length > 0
+
+- name: Add missing Hylki mail rules
+  ansible.builtin.command: "{{ local_home }}/.local/bin/hylki-ensure-rules {{ local_home }}/.local/share/hylki-rules.toml"
+  register: desktop_hylki_rules
+  changed_when: "'changed' in desktop_hylki_rules.stdout"
+  when: hylki_meeting_reply_accounts | default([]) | length > 0
 
 # GNOME Calendar keeps its own icon (Hatter's calendar page); drop the earlier Google one
 - name: Remove the GNOME Calendar launcher copy
