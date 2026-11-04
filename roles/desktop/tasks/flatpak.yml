@@ -12,6 +12,29 @@
   args:
     creates: "{{ local_home }}/.local/share/flatpak/app/co.hyprlab.Hylki"
 
+# The custom Hylki (github.com/mtharpe/hylki, private, branch chrome-profiles): Hylki plus a
+# per-account Chrome profile for links. Built from the checkout (it needs git history, so no
+# tarball) into a local Flatpak repo and made current; the release from Hylki's repo stays as
+# the fallback (flatpak make-current --user co.hyprlab.Hylki stable). update-hylki-custom.timer
+# rebuilds it on each new Hylki release.
+- name: Check for the custom Hylki
+  ansible.builtin.command: flatpak info --user co.hyprlab.Hylki//master
+  register: desktop_hylki_custom
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Look for the custom Hylki checkout
+  ansible.builtin.stat:
+    path: "{{ hylki_custom_dir }}/tools/custom/update.sh"
+  register: desktop_hylki_src
+
+- name: Build and install the custom Hylki (takes a while)
+  ansible.builtin.command: "{{ hylki_custom_dir }}/tools/custom/update.sh --force"
+  when: desktop_hylki_custom.rc != 0 and desktop_hylki_src.stat.exists
+  async: 7200
+  poll: 30
+
 # Hatter has no Hylki icon; a user copy of its launcher (it shadows the Flatpak's export)
 # points at Hatter's standard mail-app icon and calls it "Mail" (the [Desktop Entry] name only;
 # the New Message action keeps its own). Regenerated from the export, so Exec stays current.

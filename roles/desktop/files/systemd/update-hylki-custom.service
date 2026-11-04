@@ -1,0 +1,10 @@
+[Unit]
+Description=Rebuild the custom Hylki (Mail) on new Hylki releases
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=%h/src/github/mtharpe/hylki/tools/custom/update.sh
+
+[Service]
+Type=oneshot
+ExecStart=%h/src/github/mtharpe/hylki/tools/custom/update.sh
+TimeoutStartSec=2h
