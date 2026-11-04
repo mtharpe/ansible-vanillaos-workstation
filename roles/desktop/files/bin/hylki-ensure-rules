@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+"""Add mail rules to Hylki's filters.toml unless it already has them.
+
+Usage: hylki-ensure-rules WANTED.toml [FILTERS.toml]
+
+WANTED.toml holds rules separated by "# --- rule" lines. A rule counts as present when
+filters.toml has one with the same name and account_email; present rules are never touched,
+so changes made in Hylki's Settings stay. Prints "changed" when it added anything.
+"""
+import os
+import sys
+import tomllib
+
+wanted_path = sys.argv[1]
+target = sys.argv[2] if len(sys.argv) > 2 else os.path.expanduser(
+    '~/.var/app/co.hyprlab.Hylki/config/hylki/filters.toml')
+
+chunks = [c.strip() for c in open(wanted_path).read().split('# --- rule')[1:]]
+
+existing = set()
+if os.path.exists(target):
+    with open(target, 'rb') as f:
+        for rule in tomllib.load(f).get('rules', []):
+            existing.add((rule.get('name', ''), rule.get('account_email', '').lower()))
+
+added = []
+for chunk in chunks:
+    for rule in tomllib.loads(chunk).get('rules', []):
+        key = (rule.get('name', ''), rule.get('account_email', '').lower())
+        if key not in existing:
+            added.append(chunk)
+            existing.add(key)
+
+if added:
+    text = open(target).read().rstrip() + '\n\n' if os.path.exists(target) else ''
+    os.makedirs(os.path.dirname(target), exist_ok=True)
+    tmp = target + '.tmp'
+    with open(tmp, 'w') as f:
+        f.write(text + '\n\n'.join(added) + '\n')
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, target)
+    print('changed')
