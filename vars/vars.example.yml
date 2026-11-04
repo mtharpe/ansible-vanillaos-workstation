@@ -181,7 +181,8 @@ yubikey_u2f_keys: []
 #  - "you:KEYHANDLE,PUBKEY,es256,+presence"
 
 # Hylki accounts that get the mail rules in roles/desktop/templates/hylki-rules.toml.j2: calendar
-# replies ("Accepted: …") marked read and archived; Zoom's deleted-meeting notices to Trash
+# replies ("Accepted: …") filed under a "Meeting Replies" label; Zoom's deleted-meeting notices
+# under "Zoom Notices" (Hylki creates the labels on first use)
 hylki_mail_rule_accounts:
   - you@example.com
   - you@work.example

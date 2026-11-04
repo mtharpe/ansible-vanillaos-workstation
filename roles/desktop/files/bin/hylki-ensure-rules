@@ -18,10 +18,15 @@ target = sys.argv[2] if len(sys.argv) > 2 else os.path.expanduser(
 chunks = [c.strip() for c in open(wanted_path).read().split('# --- rule')[1:]]
 
 existing = set()
+keep_text = False  # whether the current file's text is kept and the new rules appended
 if os.path.exists(target):
     with open(target, 'rb') as f:
-        for rule in tomllib.load(f).get('rules', []):
-            existing.add((rule.get('name', ''), rule.get('account_email', '').lower()))
+        current = tomllib.load(f)
+    for rule in current.get('rules', []):
+        existing.add((rule.get('name', ''), rule.get('account_email', '').lower()))
+    # A file without rules ("rules = []", or nothing) is started afresh: [[rules]] can't follow
+    # an inline "rules = []". Anything else in it would be lost, so keep a file with other keys.
+    keep_text = bool(existing) or any(k != 'rules' for k in current)
 
 added = []
 for chunk in chunks:
@@ -32,7 +37,7 @@ for chunk in chunks:
             existing.add(key)
 
 if added:
-    text = open(target).read().rstrip() + '\n\n' if os.path.exists(target) else ''
+    text = open(target).read().rstrip() + '\n\n' if keep_text else ''
     os.makedirs(os.path.dirname(target), exist_ok=True)
     tmp = target + '.tmp'
     with open(tmp, 'w') as f:
