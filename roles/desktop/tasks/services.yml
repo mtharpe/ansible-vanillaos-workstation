@@ -11,6 +11,8 @@
     - update-hatter-icons.timer
     - update-craft-apps.service
     - update-craft-apps.timer
+    - update-hylki-custom.service
+    - update-hylki-custom.timer
     - screenshots-tidy.path
     - screenshots-tidy.service
     - zoom-bt-mic.service
@@ -60,6 +62,7 @@
     - power-profile-auto.service
     - update-hatter-icons.timer
     - update-craft-apps.timer
+    - update-hylki-custom.timer
     - screenshots-tidy.path
     - zoom-bt-mic.service
     - bt-av-resync.service

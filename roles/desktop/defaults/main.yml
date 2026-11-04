@@ -87,3 +87,6 @@ gnome_calendar_zoom_dir: "{{ local_home }}/src/github/mtharpe/gnome-calendar-zoo
 # Chrome profile router (github.com/mtharpe/chrome-profile-router, private)
 chrome_profile_router_tarball: https://api.github.com/repos/mtharpe/chrome-profile-router/tarball/main
 chrome_profile_router_dir: "{{ local_home }}/src/github/mtharpe/chrome-profile-router"
+
+# Custom Hylki (github.com/mtharpe/hylki, private): a git checkout, cloned by hand with gh
+hylki_custom_dir: "{{ local_home }}/src/github/mtharpe/hylki"
