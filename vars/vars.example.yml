@@ -186,6 +186,6 @@ hylki_mail_rule_accounts:
   - you@example.com
   - you@work.example
 
-# Optional: a GitHub token that can read the private mtharpe/gnome-calendar-zoom repository, used
-# to download it when ~/src/github/mtharpe/gnome-calendar-zoom isn't on the machine
+# Optional: a GitHub token that can read the private repositories mtharpe/gnome-calendar-zoom and
+# mtharpe/chrome-profile-router, used to download them when their ~/src checkouts are missing
 # github_token: ghp_...

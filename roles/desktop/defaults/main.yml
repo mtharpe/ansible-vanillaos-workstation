@@ -83,3 +83,7 @@ bt_audio_devices: []
 # this checkout; downloaded into it with github_token (vars.yml) when it is missing
 gnome_calendar_zoom_tarball: https://api.github.com/repos/mtharpe/gnome-calendar-zoom/tarball/main
 gnome_calendar_zoom_dir: "{{ local_home }}/src/github/mtharpe/gnome-calendar-zoom"
+
+# Chrome profile router (github.com/mtharpe/chrome-profile-router, private)
+chrome_profile_router_tarball: https://api.github.com/repos/mtharpe/chrome-profile-router/tarball/main
+chrome_profile_router_dir: "{{ local_home }}/src/github/mtharpe/chrome-profile-router"
