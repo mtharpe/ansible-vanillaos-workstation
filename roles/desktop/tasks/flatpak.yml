@@ -49,8 +49,8 @@
   changed_when: "'changed' in desktop_hylki_icon.stdout"
 
 # Hylki mail rules (filters.toml, from hylki-rules.toml.j2) on each account in
-# hylki_mail_rule_accounts (vars.yml): meeting replies archived, Zoom's deleted-meeting notices
-# to Trash. Rules are only added when missing, so changes made in Hylki's Settings stay.
+# hylki_mail_rule_accounts (vars.yml): meeting replies and Zoom's deleted-meeting notices filed
+# under their own labels. Rules are only added when missing, so changes made in Hylki's Settings stay.
 - name: Write the wanted Hylki mail rules
   ansible.builtin.template:
     src: hylki-rules.toml.j2
