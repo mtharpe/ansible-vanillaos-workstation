@@ -158,7 +158,7 @@
       ansible.builtin.command: flatpak make-current --user org.gnome.Calendar master
       when: desktop_gcal_src.stat.exists
 
-# Links from the custom Calendar open in the Chrome profile of the event's account, through
+# Links from the custom Calendar and Mail open in the Chrome profile of their account, through
 # chrome-profile-router (github.com/mtharpe/chrome-profile-router, private): from the checkout,
 # or downloaded with github_token (vars.yml) when it is missing.
 - name: Look for the Chrome profile router
@@ -194,7 +194,7 @@
 - name: Install the Chrome profile router
   ansible.builtin.command: "{{ chrome_profile_router_dir }}/install.sh"
   args:
-    creates: "{{ local_home }}/.local/share/applications/chrome-account-open.desktop"
+    creates: "{{ local_home }}/.local/share/applications/io.github.mtharpe.LinkProfiles.desktop"
   when: desktop_router_src.stat.exists or github_token is defined
 
 - name: Check the custom GNOME Calendar again
