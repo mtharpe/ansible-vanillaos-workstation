@@ -25,21 +25,21 @@
   register: desktop_hylki_icon
   changed_when: "'changed' in desktop_hylki_icon.stdout"
 
-# Hylki mail rules (filters.toml): meeting replies ("Accepted: …", "Declined: …") are marked read
-# and archived on each account in hylki_meeting_reply_accounts (vars.yml). Rules are only added
-# when missing, so changes made in Hylki's Settings stay.
+# Hylki mail rules (filters.toml, from hylki-rules.toml.j2) on each account in
+# hylki_mail_rule_accounts (vars.yml): meeting replies archived, Zoom's deleted-meeting notices
+# to Trash. Rules are only added when missing, so changes made in Hylki's Settings stay.
 - name: Write the wanted Hylki mail rules
   ansible.builtin.template:
-    src: hylki-meeting-replies.toml.j2
+    src: hylki-rules.toml.j2
     dest: "{{ local_home }}/.local/share/hylki-rules.toml"
     mode: "0600"
-  when: hylki_meeting_reply_accounts | default([]) | length > 0
+  when: hylki_mail_rule_accounts | default([]) | length > 0
 
 - name: Add missing Hylki mail rules
   ansible.builtin.command: "{{ local_home }}/.local/bin/hylki-ensure-rules {{ local_home }}/.local/share/hylki-rules.toml"
   register: desktop_hylki_rules
   changed_when: "'changed' in desktop_hylki_rules.stdout"
-  when: hylki_meeting_reply_accounts | default([]) | length > 0
+  when: hylki_mail_rule_accounts | default([]) | length > 0
 
 # GNOME Calendar keeps its own icon (Hatter's calendar page); drop the earlier Google one
 - name: Remove the GNOME Calendar launcher copy
