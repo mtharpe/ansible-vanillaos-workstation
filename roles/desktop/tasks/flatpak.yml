@@ -48,7 +48,7 @@
     state: absent
 
 # GNOME Calendar with guests, Zoom meetings, people lookup and reminders you snooze from the
-# notification (github.com/mtharpe/gnome-calendar-zoom). Built from source into a local Flatpak
+# notification (github.com/mtharpe/gnome-calendar-zoom, private). Built from source into a local Flatpak
 # repository and made the current Calendar; Flathub's stays installed as the fallback
 # (flatpak make-current --user org.gnome.Calendar stable). Built once; rebuild by hand.
 - name: Check for the custom GNOME Calendar
@@ -68,18 +68,50 @@
       register: desktop_gcal_sdk
       changed_when: "'Nothing to do' not in desktop_gcal_sdk.stdout"
 
+    # The repository is private: build from the checkout when there is one (it comes over with
+    # ~/src), else download it with github_token (vars.yml). Without either, nothing is built
+    # and the standard reminders stay on (below).
+    - name: Look for the custom GNOME Calendar source
+      ansible.builtin.stat:
+        path: "{{ gnome_calendar_zoom_dir }}/build.sh"
+      register: desktop_gcal_src
+
     - name: Create the custom GNOME Calendar source dir
       ansible.builtin.file:
         path: "{{ gnome_calendar_zoom_dir }}"
         state: directory
         mode: "0755"
+      when: not desktop_gcal_src.stat.exists and github_token is defined
 
-    - name: Download the custom GNOME Calendar source
+    - name: Download the custom GNOME Calendar source (private repository)
+      ansible.builtin.get_url:
+        url: "{{ gnome_calendar_zoom_tarball }}"
+        dest: "{{ local_home }}/.cache/gnome-calendar-zoom.tar.gz"
+        headers:
+          Authorization: "Bearer {{ github_token }}"
+        mode: "0600"
+      when: not desktop_gcal_src.stat.exists and github_token is defined
+      no_log: true
+
+    - name: Unpack the custom GNOME Calendar source
       ansible.builtin.unarchive:
-        src: "{{ gnome_calendar_zoom_tarball }}"
+        src: "{{ local_home }}/.cache/gnome-calendar-zoom.tar.gz"
         dest: "{{ gnome_calendar_zoom_dir }}"
         remote_src: true
         extra_opts: [--strip-components=1]
+      when: not desktop_gcal_src.stat.exists and github_token is defined
+
+    - name: Look for the custom GNOME Calendar source again
+      ansible.builtin.stat:
+        path: "{{ gnome_calendar_zoom_dir }}/build.sh"
+      register: desktop_gcal_src
+
+    - name: Say why the custom GNOME Calendar is not built
+      ansible.builtin.debug:
+        msg: >-
+          No source for the custom GNOME Calendar: restore ~/src/github/mtharpe/gnome-calendar-zoom
+          or set github_token in vars.yml. Keeping the standard reminders.
+      when: not desktop_gcal_src.stat.exists
 
     - name: Build the custom GNOME Calendar (takes a while)
       ansible.builtin.command: ./build.sh
@@ -87,17 +119,21 @@
         chdir: "{{ gnome_calendar_zoom_dir }}"
       async: 7200
       poll: 30
+      when: desktop_gcal_src.stat.exists
 
     - name: Add the custom GNOME Calendar's local repository
       ansible.builtin.command: >-
         flatpak remote-add --user --if-not-exists --no-gpg-verify
         gnome-calendar-zoom file://{{ gnome_calendar_zoom_dir }}/repo
+      when: desktop_gcal_src.stat.exists
 
     - name: Install the custom GNOME Calendar
       ansible.builtin.command: flatpak install --user -y --noninteractive gnome-calendar-zoom org.gnome.Calendar//master
+      when: desktop_gcal_src.stat.exists
 
     - name: Make the custom GNOME Calendar the one that runs
       ansible.builtin.command: flatpak make-current --user org.gnome.Calendar master
+      when: desktop_gcal_src.stat.exists
 
 - name: Check the custom GNOME Calendar again
   ansible.builtin.command: flatpak info --user org.gnome.Calendar//master
