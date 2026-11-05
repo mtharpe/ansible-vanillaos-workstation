@@ -16,9 +16,15 @@
     "trust_all_worktrees": true
   },
 
-  // --- AI: Claude Code only ---
+  // --- AI: Claude (work) and Codex (personal) ---
   // Don't use "disable_ai": it also removes the Agent Panel that Claude Code runs in.
   "agent_servers": {
+    "Codex (Personal)": {
+      "type": "custom",
+      "command": "/home/tharpem/.local/bin/zed-codex-acp",
+      "args": [],
+      "env": {}
+    },
     "claude-acp": {
       "default_config_options": {
         "mode": "auto"

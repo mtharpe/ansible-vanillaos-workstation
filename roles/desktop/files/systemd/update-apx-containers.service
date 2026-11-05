@@ -1,0 +1,13 @@
+[Unit]
+Description=Automatically update APX container packages and AI tools
+StartLimitIntervalSec=12h
+StartLimitBurst=3
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/update-apx-containers
+Restart=on-failure
+RestartSec=1h
+TimeoutStartSec=8h
+Nice=10
+IOSchedulingClass=idle

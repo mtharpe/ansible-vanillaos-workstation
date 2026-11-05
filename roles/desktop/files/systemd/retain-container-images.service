@@ -1,0 +1,11 @@
+[Unit]
+Description=Retain recent Moodle container images and remove older releases
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/retain-container-images --apply
+TimeoutStartSec=2h
+Nice=10
+CPUWeight=20
+IOWeight=20
+IOSchedulingClass=idle

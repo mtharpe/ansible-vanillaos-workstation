@@ -1,0 +1,91 @@
+#!/bin/bash
+# Host timer entrypoint; the two internal modes are streamed into each container.
+set -euo pipefail
+
+case ${1:-} in
+    --packages)
+        export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=l
+        if command -v apt-get >/dev/null; then
+            apt_options=(-o DPkg::Lock::Timeout=300 -o Acquire::Retries=3
+                -o Acquire::http::Timeout=60 -o Acquire::https::Timeout=60)
+            apt-get "${apt_options[@]}" -o APT::Update::Error-Mode=any update
+            apt-get "${apt_options[@]}" -o Dpkg::Options::=--force-confdef \
+                -o Dpkg::Options::=--force-confold --assume-yes --no-remove upgrade
+        elif command -v dnf >/dev/null; then
+            dnf --assumeyes --refresh upgrade
+        else
+            echo 'Unsupported package manager: expected APT or DNF' >&2
+            exit 1
+        fi
+        exit 0
+        ;;
+    --user-tools)
+        # podman exec's inherited HOME can belong to root; use this user's passwd entry.
+        HOME=$(getent passwd "$(id -u)" | cut -d: -f6)
+        [[ -n $HOME && -d $HOME ]] || exit 1
+        export HOME PATH="$HOME/.local/bin:$PATH" CODEX_NON_INTERACTIVE=1
+        result=0
+        for tool in claude codex; do
+            if [[ -x $HOME/.local/bin/$tool ]]; then
+                echo "Updating $tool in $HOME"
+                if ! timeout --kill-after=30s 15m "$HOME/.local/bin/$tool" update </dev/null; then
+                    echo "$tool update failed" >&2
+                    result=1
+                fi
+            fi
+        done
+        if [[ -x $HOME/.local/bin/codex-acp ]]; then
+            echo "Updating the Codex ACP adapter in $HOME"
+            if ! timeout --kill-after=30s 15m npm install --global --prefix "$HOME/.local" \
+                @agentclientprotocol/codex-acp@latest </dev/null; then
+                echo 'Codex ACP adapter update failed' >&2
+                result=1
+            fi
+        fi
+        exit "$result"
+        ;;
+    '') ;;
+    *) echo "Usage: $0" >&2; exit 2 ;;
+esac
+
+# This part runs on the host, using the desktop user's rootless Podman.
+exec 9>"${XDG_RUNTIME_DIR:?}/update-apx-containers.lock"
+flock -n 9 || { echo 'An APX update is already running'; exit 0; }
+# Called indirectly by the EXIT trap.
+# shellcheck disable=SC2317
+notify_failure() {
+    local result=$?
+    if (( result != 0 )); then
+        notify-send --app-name='APX updates' --urgency=normal 'APX update needs attention' \
+            'An automatic update failed and will be retried. Details: journalctl --user -u update-apx-containers' || true
+    fi
+}
+trap notify_failure EXIT
+
+# Include older apx-prefixed Distroboxes (Bitwarden), but never BuildKit/other containers.
+apx=$(podman ps -a --filter label=manager=apx --format '{{.Names}}')
+distroboxes=$(podman ps -a --filter label=manager=distrobox --filter 'name=^apx-' --format '{{.Names}}')
+containers=$(printf '%s\n%s\n' "$apx" "$distroboxes" | sort -u)
+result=0
+while IFS= read -r name; do
+    [[ -n $name ]] || continue
+    echo "=== $name: starting update ==="
+    # Distrobox waits for its first-start initialization before allowing package work.
+    if ! timeout --kill-after=30s 10m distrobox enter --name "$name" --no-tty --yes --no-workdir -- true </dev/null; then
+        echo "$name: could not enter container" >&2
+        result=1
+        continue
+    fi
+    if ! timeout --kill-after=30s 50m podman exec -i --user root "$name" \
+        timeout --kill-after=30s 45m bash -s -- --packages < "$0"; then
+        echo "$name: package update failed" >&2
+        result=1
+    fi
+    if ! timeout --kill-after=30s 40m podman exec -i --user "$(id -u)" "$name" \
+        timeout --kill-after=30s 35m bash -s -- --user-tools < "$0"; then
+        echo "$name: user tool update failed" >&2
+        result=1
+    fi
+    echo "=== $name: finished ==="
+done <<< "$containers"
+exit "$result"

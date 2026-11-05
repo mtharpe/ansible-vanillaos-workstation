@@ -1,2 +1,5 @@
 [Session Bus Policy]
 org.freedesktop.Flatpak=talk
+
+[Environment]
+XCURSOR_SIZE=56

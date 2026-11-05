@@ -1,0 +1,25 @@
+#!/bin/bash
+# Run Zed's Codex agent in its personal subsystem, with clean ACP stdio.
+set -euo pipefail
+uid=$(id -u)
+gid=$(id -g)
+transport=()
+if [[ -n ${CONTAINER_ID:-} ]]; then
+    export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/host/run/user/$uid/bus"
+    transport=(host-spawn --no-pty)
+fi
+# Only the ACP server may write to stdout. Do not consume its stdin here.
+"${transport[@]}" /usr/bin/podman start apx-codex </dev/null >/dev/null
+# The target shell expands its own home and arguments.
+# shellcheck disable=SC2016
+exec "${transport[@]}" /usr/bin/podman exec -i --user "$uid:$gid" \
+    --env "XDG_RUNTIME_DIR=/run/user/$uid" \
+    --env "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$uid/bus" \
+    --workdir "$PWD" apx-codex /bin/bash -c '
+        set -euo pipefail
+        HOME=$(getent passwd "$(id -u)" | cut -d: -f6)
+        [[ -n "$HOME" ]] || exit 1
+        export HOME PATH="$HOME/.local/bin:$PATH"
+        export CODEX_HOME="$HOME/.codex" CODEX_PATH="$HOME/.local/bin/codex"
+        exec "$HOME/.local/bin/codex-acp" "$@"
+    ' codex-acp "$@"

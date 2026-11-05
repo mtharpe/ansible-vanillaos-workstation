@@ -1,10 +1,11 @@
 ---
-# Create the apx subsystems (Ubuntu, each with its own home) that containers.yml configures.
+# Create the apx subsystems that containers.yml configures: Ubuntu unless the entry names another
+# apt-based stack (debian), each with its own home if it names one.
 - name: Create subsystem homes
   ansible.builtin.file:
     path: "{{ item.home }}"
     state: directory
-    mode: "0755"
+    mode: "{{ item.mode | default('0755') }}"
   loop: "{{ apx_subsystems | selectattr('home', 'defined') }}"
   loop_control:
     label: "{{ item.name }}"
@@ -20,7 +21,7 @@
   failed_when: apx_host_exists.rc not in [0, 1]
 
 - name: Create missing subsystems
-  ansible.builtin.command: apx subsystems new -n {{ item.item.name }} -s ubuntu{{ ' -H ' ~ item.item.home if item.item.home is defined else '' }}
+  ansible.builtin.command: apx subsystems new -n {{ item.item.name }} -s {{ item.item.stack | default('ubuntu') }}{{ ' -H ' ~ item.item.home if item.item.home is defined else '' }}
   loop: "{{ apx_host_exists.results | selectattr('rc', '==', 1) }}"
   loop_control:
     label: "{{ item.item.name }}"

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Name=Keybase
+Comment=Keybase in its dedicated Debian APX container
+GenericName=Secure Messaging
+Exec=/home/tharpem/.local/bin/keybase-desktop %U
+Icon=keybase
+Type=Application
+Terminal=false
+StartupNotify=false
+StartupWMClass=Keybase
+Categories=Network;InstantMessaging;
+MimeType=x-scheme-handler/keybase;x-scheme-handler/web+keybase;
+Keywords=Keybase;Chat;Encryption;

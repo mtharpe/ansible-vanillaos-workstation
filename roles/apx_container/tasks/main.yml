@@ -33,6 +33,15 @@
   ansible.builtin.set_fact:
     apx_home: "{{ apx_passwd.stdout.split(':')[5] }}"
 
+# Application-only container: leave the shared workstation/development setup behind.
+- name: Dedicated Keybase application setup
+  ansible.builtin.import_tasks: keybase.yml
+  when: "'apx_keybase' in group_names"
+
+- name: Finish the application-only Keybase setup
+  ansible.builtin.meta: end_host
+  when: "'apx_keybase' in group_names"
+
 - name: Link to the host home
   ansible.builtin.import_tasks: home.yml
   when: apx_home != local_home
@@ -65,6 +74,10 @@
 - name: Claude profile setup
   ansible.builtin.import_tasks: claude.yml
   when: "'apx_claude' in group_names"
+
+- name: Codex setup
+  ansible.builtin.import_tasks: codex.yml
+  when: "'apx_codex' in group_names"
 
 - name: Bitwarden setup
   ansible.builtin.import_tasks: bitwarden.yml
