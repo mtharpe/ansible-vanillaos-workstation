@@ -246,18 +246,20 @@
     dest: "{{ local_home }}/.local/share/flatpak/overrides/"
     mode: "0644"
 
-# Chrome on X11. On Wayland it can't see workspaces, so a link from another app goes to the
-# profile's last-focused window of any kind. When that is an app, pop-up or
-# picture-in-picture window, the link opens in a new window instead of a new tab. On X11 it
-# picks the last normal window on the current workspace. A flag, not removing the Wayland
-# socket: Chrome then still picks Wayland (from the session type) and exits at startup.
+# Chrome on native Wayland, pinned by flag: touchpad swipe-to-go-back only works there (X11
+# Chrome has no touchpad gestures). Trade-off: on Wayland Chrome can't see workspaces, so a
+# link from another app goes to the profile's last-focused window of any kind. When that is
+# an app, pop-up or picture-in-picture window, the link opens in a new window instead of a
+# new tab. To go back to X11, set --ozone-platform=x11 in files/chrome-flags.conf (don't
+# remove the Wayland socket instead: Chrome still picks Wayland from the session type and
+# exits at startup).
 - name: Create Chrome's config dir
   ansible.builtin.file:
     path: "{{ local_home }}/.var/app/com.google.Chrome/config"
     state: directory
     mode: "0755"
 
-- name: Run Chrome on X11
+- name: Run Chrome on native Wayland
   ansible.builtin.copy:
     src: chrome-flags.conf
     dest: "{{ local_home }}/.var/app/com.google.Chrome/config/chrome-flags.conf"
