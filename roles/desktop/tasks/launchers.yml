@@ -1,6 +1,6 @@
 ---
 # Host has no xdg-mime/xdg-open (Chrome is a Flatpak); open-url wraps `gio open`.
-# claude-desktop-launcher / zed-launcher pick the work or personal apx subsystem.
+# claude-desktop-launcher / zed-launcher use the work Claude apx subsystem.
 - name: Install helper scripts
   ansible.builtin.copy:
     src: bin/{{ item }}
@@ -10,9 +10,12 @@
     - open-url
     - claude-desktop-launcher
     - zed-launcher
+    - keybase-desktop
     - power-profile-auto
     - update-hatter-icons
     - update-craft-apps
+    - update-apx-containers
+    - retain-container-images
     - screenshot-edit
     - screenshot-capture-edit
     - screenshots-tidy
@@ -24,6 +27,14 @@
     - xcursor-refresh
     - timezone-on-wake
     - hylki-ensure-rules
+
+- name: Install Zed agent and settings helpers
+  ansible.builtin.copy:
+    src: bin/{{ item }}
+    dest: "{{ local_home }}/.local/bin/{{ item }}"
+    mode: "0755"
+  loop: [zed-codex-acp, configure-workstation-settings]
+  tags: [agent_setup]
 
 # Git's ssh-keygen wrapper, pointed at the chosen password manager's agent
 - name: Install the git signing wrapper
@@ -59,7 +70,7 @@
     src: applications/{{ item }}
     dest: "{{ local_home }}/.local/share/applications/{{ item }}"
     mode: "0644"
-  loop: "{{ ['1password.desktop', 'claude-desktop-launcher.desktop', 'zed-launcher.desktop']
+  loop: "{{ ['1password.desktop', 'claude-desktop-launcher.desktop', 'zed-launcher.desktop', 'keybase-apx.desktop']
             + (['bitwarden-apx.desktop'] if password_manager | default('1password') == 'bitwarden' else []) }}"
 
 # Left by the earlier apx-1password setup
@@ -123,3 +134,15 @@
   loop:
     - settings.json
     - keymap.json
+
+# Merge managed agent entries on existing installs too; never replace user fonts/themes.
+- name: Configure Zed Claude and personal Codex agents
+  tags: [agent_setup]
+  ansible.builtin.command:
+    argv: "{{ [ansible_playbook_python, desktop_settings_helper,
+                '--zed', local_home ~ '/.apx-homes/zed-config/settings.json',
+                '--codex-command', local_home ~ '/.local/bin/zed-codex-acp']
+                + (['--check'] if ansible_check_mode else []) }}"
+  register: desktop_zed_agents
+  check_mode: false
+  changed_when: desktop_zed_agents.rc == 0 and (desktop_zed_agents.stdout | from_json).changed

@@ -1,0 +1,76 @@
+---
+# OpenAI Codex in its own (Debian) subsystem, so its login and ~/.codex stay out of the
+# Claude ones. The host's `codex` wrapper (dotfiles bashrc) runs it here.
+
+# bubblewrap: Codex's Linux sandbox prefers the system /usr/bin/bwrap over its bundled one.
+# nodejs/npm: MCP servers launched with npx
+- name: Install the Codex dependencies
+  ansible.builtin.apt:
+    name: [bubblewrap, nodejs, npm, curl, ca-certificates]
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+  when: apx_python3_apt.stdout == 'installed' or not ansible_check_mode
+
+# `codex login` opens the sign-in page with xdg-open
+- name: Open URLs on the host
+  ansible.builtin.import_tasks: xdg_open.yml
+
+# The standalone install: ~/.local/bin/codex, updated in place by `codex` itself. With
+# ~/.local/bin already on PATH the installer leaves the shell rc files alone, and
+# CODEX_NON_INTERACTIVE skips its "Start Codex now?" prompt.
+- name: Install the codex CLI
+  ansible.builtin.shell: set -o pipefail && curl -fsSL https://releases.openai.com/codex/install.sh | sh
+  args:
+    executable: /bin/bash
+    creates: "{{ apx_home }}/.local/bin/codex"
+  environment:
+    HOME: "{{ apx_home }}"
+    PATH: "{{ apx_home }}/.local/bin:/usr/local/bin:/usr/bin:/bin"
+    CODEX_NON_INTERACTIVE: "1"
+
+# ACP adapter runs here so Zed uses this container's personal Codex login/config.
+- name: Install the Codex ACP adapter for Zed
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/npm
+      - install
+      - --global
+      - --prefix
+      - "{{ apx_home }}/.local"
+      - "@agentclientprotocol/codex-acp@latest"
+    creates: "{{ apx_home }}/.local/bin/codex-acp"
+  environment:
+    HOME: "{{ apx_home }}"
+
+- name: List the Codex plugin marketplaces
+  ansible.builtin.command: "{{ apx_home }}/.local/bin/codex plugin marketplace list"
+  environment: { HOME: "{{ apx_home }}" }
+  register: codex_marketplace_list
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Add the Codex plugin marketplaces
+  ansible.builtin.command: "{{ apx_home }}/.local/bin/codex plugin marketplace add {{ item.source }}"
+  environment: { HOME: "{{ apx_home }}" }
+  loop: "{{ codex_marketplaces }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: codex_marketplace_list.stdout_lines | select('match', item.name ~ ' ') | length == 0
+  changed_when: true
+
+- name: List the Codex plugins
+  ansible.builtin.command: "{{ apx_home }}/.local/bin/codex plugin list"
+  environment: { HOME: "{{ apx_home }}" }
+  register: codex_plugin_list
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Install the Codex plugins
+  ansible.builtin.command: "{{ apx_home }}/.local/bin/codex plugin add {{ item }}"
+  environment: { HOME: "{{ apx_home }}" }
+  loop: "{{ codex_plugins }}"
+  when: codex_plugin_list.stdout_lines | select('match', item ~ ' +installed') | length == 0
+  changed_when: true

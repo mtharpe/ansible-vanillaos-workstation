@@ -1,5 +1,5 @@
 ---
-# DevOps toolset for the dev subsystems (apx_dev: both Claude subsystems, apx-ansible and
+# DevOps toolset for the dev subsystems (apx_dev: both Claude subsystems, apx-codex, apx-ansible and
 # apx-vso-native), on top of apx_common_packages. yq (mikefarah's, not Debian's jq wrapper)
 # and k9s are static binaries from cli_tools.
 devops_tools_packages:
@@ -38,13 +38,16 @@ devops_tools_kubectl_minor: "1.37"
 devops_tools_cloud_clis: [google-cloud-cli, google-cloud-cli-gke-gcloud-auth-plugin, azure-cli]
 
 # Repos that are per distro release have no suite for Vanilla OS's Debian testing
-# ("reunion"); the newest Debian builds they do have run there
+# ("reunion"); the newest Debian builds they do have run there. Azure CLI has no trixie
+# suite either (the debian-stack codex subsystem)
 devops_tools_suites:
   reunion: { hashicorp: trixie, azure-cli: bookworm, docker: trixie }
+  trixie: { azure-cli: bookworm }
 
 # Docker publishes per distro; Vanilla OS gets the Debian builds
 devops_tools_docker_os:
   reunion: debian
+  trixie: debian
 
 # No Docker daemon here: the CLI talks to the host's rootless podman (podman.socket, enabled
 # by the desktop role), whose /run/user is /run/host/run/user in every subsystem

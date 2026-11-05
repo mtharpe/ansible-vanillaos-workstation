@@ -1,0 +1,15 @@
+#!/bin/bash
+# Start Keybase as container processes, never through the host's user systemd.
+set -euo pipefail
+export KEYBASE_SYSTEMD=0 KEYBASE_NO_SQUIRREL=1
+if [[ $# -eq 0 || ${1:-} == --gui ]]; then
+    [[ ${1:-} == --gui ]] && shift
+    if ! pgrep -u "$(id -u)" -x Keybase >/dev/null; then
+        # Start the service and KBFS only; run_keybase drops cold-start URL arguments.
+        /usr/bin/run_keybase -g
+    fi
+    # Match upstream's Linux tray workaround, then forward URLs/files on every launch.
+    export XDG_CURRENT_DESKTOP=Unity
+    exec /opt/keybase/Keybase "$@"
+fi
+exec /usr/bin/keybase "$@"

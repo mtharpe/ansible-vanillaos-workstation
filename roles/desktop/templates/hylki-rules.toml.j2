@@ -46,4 +46,41 @@ value = "Your meeting - "
 field = "subject"
 matcher = "ends_with"
 value = "has been deleted"
+
+# --- rule
+# Google Calendar cancellations: the event is already gone from the calendar. Marked read and
+# filed under their own label; the body check keeps other mail with such a subject out.
+[[rules]]
+name = "Canceled events"
+account_email = "{{ email }}"
+field = "subject"
+matcher = "starts_with"
+value = "Canceled event:, Canceled event with note:"
+dest_path = "Calendar Notices"
+tag = ""
+count_unread = false
+mark_read = true
+
+[[rules.more]]
+field = "body"
+matcher = "contains"
+value = "has been canceled and removed from your calendar"
+
+# --- rule
+# Google Calendar change notices: the calendar already shows the change.
+[[rules]]
+name = "Updated invitations"
+account_email = "{{ email }}"
+field = "subject"
+matcher = "starts_with"
+value = "Updated invitation:, Updated invitation with note:"
+dest_path = "Calendar Notices"
+tag = ""
+count_unread = false
+mark_read = true
+
+[[rules.more]]
+field = "body"
+matcher = "contains"
+value = "This event has been updated"
 {% endfor %}

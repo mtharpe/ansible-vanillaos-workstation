@@ -1,6 +1,6 @@
 [Desktop Entry]
 Name=Zed
-Comment=Zed editor with Claude agent (choose Work or Personal profile)
+Comment=Zed editor with Claude agent (Work account)
 GenericName=Text Editor
 Keywords=zed;editor;code;Claude;
 Exec=/home/tharpem/.local/bin/zed-launcher %U
@@ -9,12 +9,3 @@ Type=Application
 StartupNotify=false
 StartupWMClass=dev.zed.Zed
 Categories=Development;IDE;
-Actions=Work;Personal;
-
-[Desktop Action Work]
-Name=Open Work
-Exec=/home/tharpem/.local/bin/zed-launcher work
-
-[Desktop Action Personal]
-Name=Open Personal
-Exec=/home/tharpem/.local/bin/zed-launcher personal

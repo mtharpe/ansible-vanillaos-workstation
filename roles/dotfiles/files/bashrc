@@ -145,28 +145,39 @@ alias vi="nvim"
 alias vim="nvim"
 
 
-# Claude Code: pick work/personal account, each in its own apx subsystem (separate $HOME)
+# Claude Code: use the work account in its own apx subsystem.
 claude() {
-    # Already inside one of the claude subsystems: run the real binary
-    if [[ "${CONTAINER_ID:-}" == apx-claude-* ]]; then
+    if [[ "${CONTAINER_ID:-}" == apx-claude-work ]]; then
         command claude "$@"
         return
     fi
 
-    local acct
-    case "${1:-}" in
-        work|personal) acct="$1"; shift ;;
-        *)
-            PS3="Claude account: "
-            select acct in work personal; do
-                [[ -n "$acct" ]] && break
-            done
-            [[ -z "$acct" ]] && return 1
-            ;;
-    esac
-
-    host-shell /usr/share/apx/distrobox/distrobox-enter -n "apx-claude-${acct}" -- \
+    # Keep the explicit work shortcut supported.
+    [[ "${1:-}" == work ]] && shift
+    host-shell /usr/share/apx/distrobox/distrobox-enter -n apx-claude-work -- \
         bash -lc 'cd "$1" 2>/dev/null; shift; exec ~/.local/bin/claude "$@"' _ "$PWD" "$@"
+}
+
+# Codex: run inside the "codex" apx subsystem (Debian, its own $HOME and ~/.codex)
+codex() {
+    # Already inside the codex subsystem: run the real binary
+    if [[ "${CONTAINER_ID:-}" == apx-codex ]]; then
+        command codex "$@"
+        return
+    fi
+
+    host-shell /usr/share/apx/distrobox/distrobox-enter -n apx-codex -- \
+        bash -lc 'cd "$1" 2>/dev/null; shift; exec ~/.local/bin/codex "$@"' _ "$PWD" "$@"
+}
+
+# Keybase: GUI with no arguments, CLI arguments inside its dedicated Debian container.
+keybase() {
+    if [[ "${CONTAINER_ID:-}" == apx-keybase ]]; then
+        /usr/local/bin/keybase-contained "$@"
+        return
+    fi
+    host-shell /usr/share/apx/distrobox/distrobox-enter -n apx-keybase -- \
+        bash -lc 'cd "$1" 2>/dev/null; shift; exec /usr/local/bin/keybase-contained "$@"' _ "$PWD" "$@"
 }
 
 # Ansible: run inside the "ansible" apx subsystem

@@ -19,3 +19,6 @@
 
 - name: YubiKey unlocks the lock screen
   ansible.builtin.import_tasks: yubikey_unlock.yml
+
+- name: Immutable host maintenance and network startup
+  ansible.builtin.import_tasks: immutable_host.yml

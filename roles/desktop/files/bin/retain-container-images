@@ -1,0 +1,174 @@
+#!/usr/bin/python3
+"""Retain recent numbered allowlisted images; all other repositories are out of scope."""
+import argparse
+import fcntl
+import json
+import math
+import os
+import re
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+REPOSITORIES = frozenset({
+    '123456789012.dkr.ecr.us-east-1.amazonaws.com/example-app',
+    '123456789012.dkr.ecr.us-east-1.amazonaws.com/example-app-tools',
+})
+KEEP_VERSIONS = 5
+GRACE_SECONDS = 24 * 60 * 60
+IMAGE_ID = re.compile(r'[0-9a-f]{64}')
+
+
+def checked_id(value):
+    if not isinstance(value, str) or not IMAGE_ID.fullmatch(value):
+        raise ValueError('Invalid image ID in Podman metadata; refusing cleanup')
+    return value
+
+
+def release(reference):
+    repo, sep, tag = reference.rpartition(':')
+    if sep and repo in REPOSITORIES and re.fullmatch(r'rel-v[0-9]+', tag):
+        return repo, int(tag[5:])
+    return None
+
+
+def image_references(image):
+    fields = []
+    for key in ('Names', 'RepoTags', 'RepoDigests'):
+        value = image.get(key)
+        if value is None:
+            value = []
+        if not isinstance(value, list) or not all(isinstance(x, str) for x in value):
+            raise ValueError(f'Invalid {key}; refusing cleanup')
+        fields.append(value)
+    return list(dict.fromkeys(fields[0] + fields[1])), fields[2]
+
+
+def select_candidates(images, containers, now):
+    if not isinstance(images, list) or not isinstance(containers, list):
+        raise ValueError('Expected Podman image and container lists')
+    used = {checked_id(container['ImageID']) for container in containers}
+    versions = {repo: set() for repo in REPOSITORIES}
+    entries = []
+    for image in images:
+        image_id = checked_id(image['Id'])
+        names, digests = image_references(image)
+        releases = [release(name) for name in names]
+        for item in releases:
+            if item:
+                versions[item[0]].add(item[1])
+        entries.append((image, image_id, names, digests, releases))
+    newest = {repo: set(sorted(values, reverse=True)[:KEEP_VERSIONS])
+              for repo, values in versions.items()}
+    candidates = []
+    for image, image_id, names, digests, releases in entries:
+        # Any unexpected/local/rollback/latest tag protects the entire image.
+        if not names or not all(releases) or image_id in used or image.get('Containers', 0):
+            continue
+        if any(digest.split('@', 1)[0] not in REPOSITORIES or
+               not re.fullmatch(r'.+@sha256:[0-9a-f]{64}', digest) for digest in digests):
+            continue
+        if any(number in newest[repo] for repo, number in releases):
+            continue
+        created = image.get('Created')
+        if isinstance(created, bool) or not isinstance(created, (int, float)):
+            continue
+        if not math.isfinite(created) or created < 0 or now - created < GRACE_SECONDS:
+            continue
+        candidates.append(image_id)
+    return list(dict.fromkeys(candidates))
+
+
+def podman(*args, timeout=120):
+    return subprocess.run(['/usr/bin/podman', *args], check=True, text=True,
+                          capture_output=True, timeout=timeout).stdout
+
+
+def snapshot():
+    # A failure or malformed JSON aborts before any further deletion.
+    return (json.loads(podman('images', '--format', 'json')),
+            json.loads(podman('ps', '-a', '--format', 'json')))
+
+
+def delete_image(image_id, references):
+    # References are scoped to the selected release. A concurrently added local
+    # alias survives; an immutable-ID deletion could inadvertently remove it.
+    checked_id(image_id)
+    if not references or any(not release(ref) and not (
+            ref.split('@', 1)[0] in REPOSITORIES and
+            re.fullmatch(r'.+@sha256:[0-9a-f]{64}', ref)) for ref in references):
+        raise ValueError('Unexpected release reference; refusing deletion')
+    output = podman('rmi', '--no-prune', '--ignore', '--', *references, timeout=3600)
+    print(f'Removed old release references for {image_id[:12]} '
+          f'({len(output.splitlines())} records)', flush=True)
+
+
+def prune_old_dangling():
+    # Podman evaluates dangling status itself: tagged local images, containers,
+    # volumes and active/external build containers are excluded. --force here
+    # only suppresses the prompt; unlike rmi --force it does not force removal of containers.
+    output = podman('image', 'prune', '--force', '--filter', 'until=168h', timeout=3600)
+    print(f'Expired {len(output.splitlines())} old dangling image records (7-day grace)',
+          flush=True)
+
+
+def run(apply=False, now=None):
+    now = time.time() if now is None else now
+    images, containers = snapshot()
+    candidates = select_candidates(images, containers, now)
+    print(f'{len(candidates)} eligible old release images; keep {KEEP_VERSIONS} versions '
+          f'per repository, grace period 24h; apply={apply}', flush=True)
+    result = 0
+    for image_id in candidates:
+        if not apply:
+            print(f'Would remove {image_id}', flush=True)
+            continue
+        # Re-evaluate all tags and running/stopped container references immediately
+        # before each mutation, including changes since the initial discovery.
+        fresh_images, fresh_containers = snapshot()
+        if image_id not in select_candidates(fresh_images, fresh_containers, now):
+            print(f'Preserving {image_id[:12]}: references changed', flush=True)
+            continue
+        try:
+            fresh_image = next(image for image in fresh_images if image['Id'] == image_id)
+            names, digests = image_references(fresh_image)
+            delete_image(image_id, sorted(set(names + digests)))
+        except (OSError, RuntimeError, subprocess.SubprocessError) as error:
+            detail = getattr(error, 'stderr', None) or str(error)
+            print(f'Could not remove {image_id[:12]}: {detail}', file=sys.stderr, flush=True)
+            result = 1
+    return result
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--apply', action='store_true', help='delete eligible images; default is dry-run')
+    args = parser.parse_args()
+    runtime = Path(os.environ['XDG_RUNTIME_DIR'])
+    with (runtime / 'retain-container-images.lock').open('w') as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print('Image retention is already running')
+            return 0
+        try:
+            result = run(args.apply)
+            if args.apply and result == 0:
+                prune_old_dangling()
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError, subprocess.SubprocessError) as error:
+            print(f'Image retention failed: {error}', file=sys.stderr)
+            result = 1
+        if result:
+            try:
+                subprocess.run(['notify-send', '--app-name=Container maintenance',
+                                'Container image cleanup failed',
+                                'Details: journalctl --user -u retain-container-images.service'],
+                               timeout=10, check=False)
+            except (OSError, subprocess.SubprocessError):
+                pass
+        return result
+
+
+if __name__ == '__main__':
+    sys.exit(main())

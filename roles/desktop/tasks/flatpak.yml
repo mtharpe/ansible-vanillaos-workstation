@@ -229,7 +229,11 @@
   register: desktop_craft_apps
   changed_when: "'Updating ' in desktop_craft_apps.stdout"
 
-# Chrome: may talk to org.freedesktop.Flatpak.
+# Chrome: may talk to org.freedesktop.Flatpak, and XCURSOR_SIZE=56. On X11 (flag file
+#  below) at 125% scaling, Xwayland renders at 2x and Mutter shrinks it, so Chrome needs
+#  2x the 28px GNOME cursor. Chrome reads XCURSOR_SIZE before the Xcursor.size resource
+#  and something in the sandbox sets it to 24 even with the global value unset, which
+#  shrinks to a tiny cursor. Fixed, so it's 2x too big on a 100%-scaled display.
 # Wayland everywhere it works: Slack and MeshLab are moved onto it here, Zoom below.
 #  Left on X11: Nextcloud (with Wayland its tray menu opens mid-screen), Bambu Studio
 #  (Flathub ships it X11-only; its 3D view misbehaves on Wayland), OnlyOffice (no
@@ -364,3 +368,21 @@
     dest: "{{ local_home }}/.var/app/us.zoom.Zoom/.config/zoomus.conf"
     state: link
     force: true
+
+# Local State is browser-wide; only memory saver is merged. Battery preferences remain user-owned.
+- name: Configure Chrome Memory Saver at Balanced level
+  tags: [agent_setup]
+  ansible.builtin.command:
+    argv: "{{ [ansible_playbook_python, desktop_settings_helper,
+                '--chrome', local_home ~ '/.var/app/com.google.Chrome/config/google-chrome/Local State']
+                + (['--check'] if ansible_check_mode else []) }}"
+  register: desktop_chrome_memory
+  check_mode: false
+  changed_when: desktop_chrome_memory.rc == 0 and (desktop_chrome_memory.stdout | from_json).changed
+  failed_when: desktop_chrome_memory.rc not in [0, 75]
+
+- name: Explain deferred browser preference update
+  tags: [agent_setup]
+  ansible.builtin.debug:
+    msg: Chrome is running; close it and rerun the user play to apply Memory Saver safely.
+  when: desktop_chrome_memory.rc == 75

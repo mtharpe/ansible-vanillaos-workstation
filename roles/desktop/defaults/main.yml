@@ -28,6 +28,8 @@ desktop_bitwarden_url_handlers:
   x-scheme-handler/bitwarden: bitwarden-apx.desktop
 
 desktop_url_handlers:
+  x-scheme-handler/keybase: keybase-apx.desktop
+  x-scheme-handler/web+keybase: keybase-apx.desktop
   x-scheme-handler/claude: claude-desktop-launcher.desktop
   x-scheme-handler/onepassword: 1password.desktop
   x-scheme-handler/onepassword8: 1password.desktop
@@ -35,6 +37,8 @@ desktop_url_handlers:
 
 # dconf values are GVariant text, so strings carry their own quotes
 desktop_dconf:
+  # Keep GNOME's Show Applications grid button visible in the overview dash.
+  /org/gnome/shell/extensions/just-perfection/show-apps-button: "true"
   /org/gnome/shell/enabled-extensions: "[{% for e in gnome_enabled_extensions %}'{{ e }}'{{ ', ' if not loop.last }}{% endfor %}]"
   # Location services, so GNOME's automatic time zone (on by default) can follow the laptop;
   # timezone-on-wake re-checks after every resume
@@ -90,3 +94,8 @@ chrome_profile_router_dir: "{{ local_home }}/src/github/mtharpe/chrome-profile-r
 
 # Custom Hylki (github.com/mtharpe/hylki, private): a git checkout, cloned by hand with gh
 hylki_custom_dir: "{{ local_home }}/src/github/mtharpe/hylki"
+
+# Check mode evaluates current role code without installing/writing helper files.
+desktop_settings_helper: "{{ (role_path ~ '/files/bin/configure-workstation-settings')
+                              if ansible_check_mode
+                              else (local_home ~ '/.local/bin/configure-workstation-settings') }}"

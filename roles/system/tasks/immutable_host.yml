@@ -1,0 +1,51 @@
+---
+# Vanilla OS updates its read-only base through ABRoot. Host APT timers cannot
+# update it; package maintenance inside APX containers is independent.
+- name: Check for a Vanilla OS host without executable host APT
+  ansible.builtin.shell: |
+    . /etc/os-release
+    test "$ID" = vanilla && test ! -x /usr/bin/apt-config &&
+      findmnt -n -o OPTIONS / | grep -Eq '(^|,)ro(,|$)'
+  args:
+    executable: /bin/bash
+  register: immutable_host_base
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Mask inapplicable host APT jobs
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    masked: true
+    state: stopped
+  loop:
+    - apt-daily.service
+    - apt-daily.timer
+    - apt-daily-upgrade.service
+    - apt-daily-upgrade.timer
+  when: immutable_host_base.rc == 0
+
+# Keep networkd itself available, and keep NetworkManager's wait-online service.
+# Only suppress the redundant wait when networkd manages none of the links.
+- name: Check whether NetworkManager is active and networkd manages no links
+  ansible.builtin.shell: |
+    set -o pipefail
+    systemctl is-active --quiet NetworkManager &&
+      networkctl list --no-legend --no-pager |
+      awk '$NF != "unmanaged" {bad=1} END {exit bad}'
+  args:
+    executable: /bin/bash
+  register: immutable_host_networkmanager
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: immutable_host_base.rc == 0
+
+- name: Mask the redundant networkd online wait
+  ansible.builtin.systemd_service:
+    name: systemd-networkd-wait-online.service
+    masked: true
+    state: stopped
+  when:
+    - immutable_host_base.rc == 0
+    - immutable_host_networkmanager.rc | default(1) == 0

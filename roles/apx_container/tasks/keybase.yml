@@ -1,0 +1,122 @@
+---
+# Dedicated application path: no shared .ssh/.gitconfig/.bashrc or developer packages.
+- name: Install Keybase installation and GUI runtime dependencies
+  ansible.builtin.apt:
+    name: [ca-certificates, curl, gnupg, python3-apt, libgbm1, libxkbcommon0]
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+
+- name: Verify signed Keybase bootstrap artifacts on real runs
+  when: not ansible_check_mode
+  block:
+    - name: Create private Keybase installer cache
+      ansible.builtin.file:
+        path: /var/cache/keybase-installer/gnupg
+        state: directory
+        mode: "0700"
+      become: true
+
+    - name: Download official Keybase package, signature and signing key
+      ansible.builtin.get_url:
+        url: "{{ item.url }}"
+        dest: /var/cache/keybase-installer/{{ item.name }}
+        mode: "0644"
+      loop:
+        - {name: keybase_amd64.deb, url: 'https://prerelease.keybase.io/keybase_amd64.deb'}
+        - {name: keybase_amd64.deb.sig, url: 'https://prerelease.keybase.io/keybase_amd64.deb.sig'}
+        - {name: code-signing.asc, url: 'https://keybase.io/docs/server_security/code_signing_key.asc'}
+      become: true
+
+    - name: Read the Keybase signing-key fingerprint
+      ansible.builtin.command:
+        argv: [gpg, --homedir, /var/cache/keybase-installer/gnupg, --show-keys, --with-colons, /var/cache/keybase-installer/code-signing.asc]
+      register: keybase_signing_key
+      changed_when: false
+      become: true
+
+    - name: Verify the published Keybase signing-key fingerprint
+      ansible.builtin.assert:
+        that: "'fpr:::::::::222B85B0F90BE2D24CFEB93F47484E50656D16C7:' in keybase_signing_key.stdout_lines"
+        fail_msg: The downloaded Keybase signing key does not match the official fingerprint.
+
+    - name: Import the Keybase public signing certificate
+      ansible.builtin.command:
+        argv: [gpg, --homedir, /var/cache/keybase-installer/gnupg, --batch, --import, /var/cache/keybase-installer/code-signing.asc]
+      changed_when: false
+      become: true
+
+    - name: Export only the pinned Keybase primary signing key
+      ansible.builtin.command:
+        argv: [gpg, --homedir, /var/cache/keybase-installer/gnupg, --batch, --yes, --output, /var/cache/keybase-installer/signing.gpg, --export, 222B85B0F90BE2D24CFEB93F47484E50656D16C7]
+      changed_when: false
+      become: true
+
+    - name: Verify the official Keybase package signature
+      ansible.builtin.command:
+        argv: [gpgv, --homedir, /var/cache/keybase-installer/gnupg, --keyring, /var/cache/keybase-installer/signing.gpg, /var/cache/keybase-installer/keybase_amd64.deb.sig, /var/cache/keybase-installer/keybase_amd64.deb]
+      changed_when: false
+      become: true
+
+- name: Create Keybase container configuration directory
+  ansible.builtin.file:
+    path: /etc/keybase
+    state: directory
+    mode: "0755"
+  become: true
+
+- name: Keep Keybase processes and file mounts in the container
+  ansible.builtin.copy:
+    content: |
+      {"disable-root-redirector": true, "disable-autorestart": true}
+    dest: /etc/keybase/config.json
+    mode: "0644"
+  become: true
+
+- name: Install the verified Keybase desktop package
+  when: not ansible_check_mode
+  ansible.builtin.apt:
+    deb: /var/cache/keybase-installer/keybase_amd64.deb
+  become: true
+
+- name: Check whether Keybase is already installed
+  ansible.builtin.stat:
+    path: /usr/bin/keybase
+  register: keybase_installed
+
+- name: Report a planned Keybase installation in check mode
+  ansible.builtin.debug:
+    msg: Official Keybase package/signature download and verification happen on a real run.
+  changed_when: not keybase_installed.stat.exists
+  when: ansible_check_mode
+
+- name: Use HTTPS for Keybase package updates
+  ansible.builtin.copy:
+    content: "deb [signed-by=/usr/share/keyrings/keybase.asc] https://prerelease.keybase.io/deb stable main\n"
+    dest: /etc/apt/sources.list.d/keybase.list
+    mode: "0644"
+  become: true
+
+- name: Open Keybase links on the host desktop
+  ansible.builtin.import_tasks: xdg_open.yml
+
+- name: Install the contained Keybase entrypoint
+  ansible.builtin.copy:
+    src: keybase-contained
+    dest: /usr/local/bin/keybase-contained
+    mode: "0755"
+  become: true
+
+- name: Create host Keybase icon directory
+  ansible.builtin.file:
+    path: "{{ local_home }}/.local/share/icons/hicolor/256x256/apps"
+    state: directory
+    mode: "0755"
+
+- name: Install the Keybase icon for GNOME
+  when: not ansible_check_mode or keybase_installed.stat.exists
+  ansible.builtin.copy:
+    src: /usr/share/icons/hicolor/256x256/apps/keybase.png
+    dest: "{{ local_home }}/.local/share/icons/hicolor/256x256/apps/keybase.png"
+    remote_src: true
+    mode: "0644"

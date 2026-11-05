@@ -1,0 +1,5 @@
+#!/bin/bash
+# The application and its account data live in the dedicated Debian subsystem.
+set -euo pipefail
+exec /usr/share/apx/distrobox/distrobox-enter -n apx-keybase -- \
+    /usr/local/bin/keybase-contained --gui "$@"

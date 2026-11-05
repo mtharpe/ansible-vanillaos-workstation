@@ -1,6 +1,6 @@
 ---
-# Work and personal Claude profiles: Claude Desktop, the claude CLI and Zed live in each
-# subsystem so their logins stay separate. The host launchers pick which one to run.
+# Work Claude: Desktop, the CLI and Zed run here. Zed bridges personal Codex
+# to its own subsystem; account homes and native agent credentials stay separate.
 - name: Add the Claude Desktop apt key
   ansible.builtin.get_url:
     url: https://downloads.claude.ai/claude-desktop/key.asc

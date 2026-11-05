@@ -10,7 +10,11 @@
     - update-hatter-icons.service
     - update-hatter-icons.timer
     - update-craft-apps.service
+    - update-apx-containers.service
+    - retain-container-images.service
     - update-craft-apps.timer
+    - update-apx-containers.timer
+    - retain-container-images.timer
     - update-hylki-custom.service
     - update-hylki-custom.timer
     - screenshots-tidy.path
@@ -62,6 +66,8 @@
     - power-profile-auto.service
     - update-hatter-icons.timer
     - update-craft-apps.timer
+    - update-apx-containers.timer
+    - retain-container-images.timer
     - update-hylki-custom.timer
     - screenshots-tidy.path
     - zoom-bt-mic.service

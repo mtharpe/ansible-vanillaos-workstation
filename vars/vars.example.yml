@@ -156,12 +156,18 @@ google_geolocation_api_key: ""
 # log out and back in.
 password_manager: 1password
 
-# apx subsystems: name -> custom home (no home: shares the host $HOME)
+# apx subsystems: name -> custom home (no home: shares the host $HOME) and stack (apx's
+# ubuntu or debian; default ubuntu)
 apx_subsystems:
   - name: claude-work
     home: "{{ local_home }}/.apx-homes/claude-work"
-  - name: claude-personal
-    home: "{{ local_home }}/.apx-homes/claude-personal"
+  - name: codex
+    home: "{{ local_home }}/.apx-homes/codex"
+    stack: debian
+  - name: keybase
+    home: "{{ local_home }}/.apx-homes/keybase"
+    stack: debian
+    mode: "0700"
   - name: ansible
 
 # Bluetooth headsets: WirePlumber codec profile and latency offset (ms, may be negative) that keep
@@ -181,8 +187,9 @@ yubikey_u2f_keys: []
 #  - "you:KEYHANDLE,PUBKEY,es256,+presence"
 
 # Hylki accounts that get the mail rules in roles/desktop/templates/hylki-rules.toml.j2: calendar
-# replies ("Accepted: …") filed under a "Meeting Replies" label; Zoom's deleted-meeting notices
-# under "Zoom Notices" (Hylki creates the labels on first use)
+# replies ("Accepted: …") filed under a "Meeting Replies" label, canceled events and updated
+# invitations under "Calendar Notices", Zoom's deleted-meeting notices under "Zoom Notices"
+# (Hylki creates the labels on first use)
 hylki_mail_rule_accounts:
   - you@example.com
   - you@work.example

@@ -9,3 +9,13 @@ apx_common_packages: [gh, git, curl, ca-certificates, jq, file, neovim, bind9-dn
 # has no /run/user/$UID of its own)
 apx_gh_env:
   DBUS_SESSION_BUS_ADDRESS: unix:path=/run/host/run/user/1000/bus
+
+# Codex plugins (apx-codex), mirroring the ones installed by hand in the Claude subsystems (not the
+# org-synced ones). Codex reads Claude-format marketplaces, so they come from the same repos.
+# claude-security isn't here: it's built on Claude Code's agents and workflows.
+codex_marketplaces:
+  - { name: owasp-security-audit-marketplace, source: ayman-benmada/owasp-security-audit }
+  - { name: claude-plugins-official, source: anthropics/claude-plugins-official }
+codex_plugins:
+  - owasp-security-audit@owasp-security-audit-marketplace
+  - frontend-design@claude-plugins-official
