@@ -197,3 +197,9 @@ hylki_mail_rule_accounts:
 # Optional: a GitHub token that can read the private repositories mtharpe/gnome-calendar-zoom and
 # mtharpe/chrome-profile-router, used to download them when their ~/src checkouts are missing
 # github_token: ghp_...
+
+# Container image retention: registry repositories whose numbered release images
+# (<tag_prefix><number>) are pruned to the five newest by a daily timer. Empty = off
+image_retention_repositories: []
+#  - 123456789012.dkr.ecr.us-east-1.amazonaws.com/example-app
+image_retention_tag_prefix: v

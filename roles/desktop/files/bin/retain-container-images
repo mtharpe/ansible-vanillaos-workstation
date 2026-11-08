@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Retain recent numbered allowlisted images; all other repositories are out of scope."""
+"""Retain recent numbered release images in the configured repositories; all others are out of scope."""
 import argparse
 import fcntl
 import json
@@ -11,10 +11,26 @@ import sys
 import time
 from pathlib import Path
 
-REPOSITORIES = frozenset({
-    '123456789012.dkr.ecr.us-east-1.amazonaws.com/example-app',
-    '123456789012.dkr.ecr.us-east-1.amazonaws.com/example-app-tools',
-})
+# Repositories and release tag prefix come from a local config written by the desktop role from
+# vars.yml (image_retention_*), so registry names never live in this public repository:
+#   {"repositories": ["<registry>/<repo>", ...], "tag_prefix": "v"}
+# No config or no repositories: no release images are considered.
+CONFIG = Path(os.environ.get('XDG_CONFIG_HOME') or Path.home() / '.config') / 'retain-container-images.json'
+
+
+def load_config(path=CONFIG):
+    try:
+        data = json.loads(path.read_text())
+    except FileNotFoundError:
+        return frozenset(), 'v'
+    repos = data.get('repositories') or []
+    prefix = data.get('tag_prefix') or 'v'
+    if not all(isinstance(r, str) and r for r in repos) or not isinstance(prefix, str):
+        raise ValueError(f'Invalid {path}')
+    return frozenset(repos), prefix
+
+
+REPOSITORIES, TAG_PREFIX = load_config()
 KEEP_VERSIONS = 5
 GRACE_SECONDS = 24 * 60 * 60
 IMAGE_ID = re.compile(r'[0-9a-f]{64}')
@@ -28,8 +44,8 @@ def checked_id(value):
 
 def release(reference):
     repo, sep, tag = reference.rpartition(':')
-    if sep and repo in REPOSITORIES and re.fullmatch(r'rel-v[0-9]+', tag):
-        return repo, int(tag[5:])
+    if sep and repo in REPOSITORIES and re.fullmatch(re.escape(TAG_PREFIX) + r'[0-9]+', tag):
+        return repo, int(tag[len(TAG_PREFIX):])
     return None
 
 

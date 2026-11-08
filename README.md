@@ -132,7 +132,7 @@ The system role masks host `apt-daily`/`apt-daily-upgrade` services and timers o
 
 Automatic Hylki builds use `Nice=10`, `CPUWeight=20`, `IOWeight=20` and idle I/O scheduling. Foreground applications take priority during contention; builds remain automatic and no power-profile settings change.
 
-`retain-container-images.timer` runs daily around 03:00–04:00 local time and catches up after downtime. It only considers numbered `rel-vN` releases in the allowlisted ECR repositories, keeps the five newest version numbers per repository, and gives new images a 24-hour grace period. Any other tag, local image alias, unknown repository digest, unknown creation time or container reference preserves the entire image. All running/stopped container references and tags are checked again before each deletion. It removes only the selected release tags/digests without force or implicit parent pruning, so a concurrently added local tag survives. A separate Podman cleanup expires unused, untagged images older than seven days; tagged local images, container/volume data and active external build containers are preserved. It never performs system/container/volume pruning. Unknown digest-only release images are retained for manual review.
+`retain-container-images.timer` runs daily around 03:00–04:00 local time and catches up after downtime. It only considers numbered releases (`image_retention_tag_prefix` + a number) in the repositories listed in `image_retention_repositories` (vars.yml; written to `~/.config/retain-container-images.json`, nothing is considered when it is empty), keeps the five newest version numbers per repository, and gives new images a 24-hour grace period. Any other tag, local image alias, unknown repository digest, unknown creation time or container reference preserves the entire image. All running/stopped container references and tags are checked again before each deletion. It removes only the selected release tags/digests without force or implicit parent pruning, so a concurrently added local tag survives. A separate Podman cleanup expires unused, untagged images older than seven days; tagged local images, container/volume data and active external build containers are preserved. It never performs system/container/volume pruning. Unknown digest-only release images are retained for manual review.
 
 The script defaults to dry-run: `~/.local/bin/retain-container-images`. The timer uses `--apply`; failures are logged and notified. Inspect with `journalctl --user -u retain-container-images.service`.
 
@@ -155,7 +155,7 @@ Reapply helpers/agent entries and Chrome preferences on an existing machine with
 | Claude uses only work; Zed supports both accounts | Work-only launchers/menu entries, dotfiles Bash wrapper, Zed settings merge and Codex ACP container installation |
 | Retired personal Claude and Bitwarden containers | Excluded from the current `apx_subsystems` declarations; `password_manager: 1password`. Optional Bitwarden role support remains available but is inactive |
 | Daily APX package/native tool updates | Desktop helper, systemd service/timer and installation/enablement tasks |
-| Daily image retention | Tested allowlisted release retention helper and systemd service/timer; preserves recent releases, tagged local images and container/volume data |
+| Daily image retention | Tested release retention helper and systemd service/timer; preserves recent releases, tagged local images and container/volume data |
 | Immutable-host startup fixes | `roles/system/tasks/immutable_host.yml`: guarded `/etc/systemd/system` masks, with ABRoot and NetworkManager preserved |
 | Automatic Hylki build priority | Resource settings in `update-hylki-custom.service` |
 | Chrome Memory Saver | Desktop role and tested settings merge helper; memory preferences only |
@@ -173,3 +173,21 @@ The Keybase role verifies the [official Debian package](https://keybase.io/docs/
 Open **Keybase** from GNOME's application grid, or use the Bash function: `keybase` opens its GUI; `keybase login`, `keybase status`, `keybase --version`, etc. run the CLI in the same container with arguments and working directory preserved. Existing terminals need `source ~/.bashrc` once. The host launcher and URL handlers route into the dedicated container. Keybase runs as container processes with `KEYBASE_SYSTEMD=0`; it never starts host Keybase systemd units. The optional root `/keybase` redirector is disabled, leaving any KBFS mount in the container. Host login autostart is not enabled.
 
 Account sign-in is completed in Keybase's GUI or CLI and stored only in the Keybase home; credentials are not part of Ansible. Reapply with the normal user and container plays.
+
+## Keeping secrets and personal details out
+
+This repository is public. Real values (accounts, hostnames, registries, keys) live only in
+`vars/vars.yml` and `vars/*.crt`, which are gitignored; `vars/vars.example.yml` holds placeholders.
+
+`scripts/leak-check` enforces it. `./run.sh` turns on its git hooks (or run
+`git config core.hooksPath .githooks`):
+
+- **pre-commit / commit-msg** check staged changes, file names and the message
+- **pre-push** checks every commit being pushed
+- **GitHub Actions** (`.github/workflows/leak-check.yml`) rechecks all files and history
+
+It blocks tokens and keys, AWS account IDs, private IPs, internal hostnames, MAC addresses and
+email addresses outside `.leak-check-allow`, plus **any value in your `vars/vars.yml`** that is not
+also in `vars.example.yml`, plus a personal denylist kept outside every repository at
+`~/.config/leak-check/denylist` (one case-insensitive regex per line: employer names, project
+names, hostnames). Run `scripts/leak-check --tree` or `--history` any time.

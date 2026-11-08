@@ -28,6 +28,13 @@
     - timezone-on-wake
     - hylki-ensure-rules
 
+# retain-container-images reads its repositories from here (vars.yml), never from the repo
+- name: Configure container image retention
+  ansible.builtin.copy:
+    content: "{{ {'repositories': image_retention_repositories, 'tag_prefix': image_retention_tag_prefix} | to_nice_json }}\n"
+    dest: "{{ local_home }}/.config/retain-container-images.json"
+    mode: "0600"
+
 - name: Install Zed agent and settings helpers
   ansible.builtin.copy:
     src: bin/{{ item }}

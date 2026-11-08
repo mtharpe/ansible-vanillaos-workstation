@@ -1,5 +1,5 @@
 [Unit]
-Description=Daily retention of old allowlisted container images
+Description=Daily retention of old release container images
 
 [Timer]
 OnCalendar=*-*-* 03:00:00

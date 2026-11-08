@@ -10,6 +10,8 @@ spec = importlib.util.spec_from_loader(loader.name, loader)
 retention = importlib.util.module_from_spec(spec)
 loader.exec_module(retention)
 REPO = '123456789012.dkr.ecr.us-east-1.amazonaws.com/example-app'
+retention.REPOSITORIES = frozenset({REPO, REPO + '-tools'})
+retention.TAG_PREFIX = 'rel-v'
 NOW = 200000
 
 

@@ -1,0 +1,3 @@
+#!/bin/sh
+# Blocks secrets/personal details in staged changes (scripts/leak-check)
+exec "$(git rev-parse --show-toplevel)/scripts/leak-check" --staged

@@ -1,0 +1,14 @@
+# Known-public strings that match a scripts/leak-check built-in pattern. One regex per line,
+# matched against the flagged text. Keep entries exact: never allowlist a real value.
+^[\w.+-]+@example\.(com|org|net)$
+^[\w.+-]+@[\w.-]+\.example$
+^[\w.+-]+@users\.noreply\.github\.com$
+^noreply@anthropic\.com$
+^no-reply@zoom\.us$
+^git@(github|bitbucket|gitlab)\.com$
+^vso@vanillaos\.org$
+^[\w-]+@gnome-shell-extensions\.gcampax\.github\.com$
+^appindicatorsupport@rgcjonas\.gmail\.com$
+^home\.lan$
+^123456789012\.dkr\.ecr\.$
+^XX(:XX){5}$

@@ -1,0 +1,208 @@
+#!/usr/bin/env python3
+"""Block secrets and personal details from entering this public repository.
+
+  leak-check --staged          staged changes (pre-commit hook)
+  leak-check --message FILE    a commit message (commit-msg hook)
+  leak-check --range A..B      commits being pushed: diffs and messages (pre-push hook)
+  leak-check --tree            every tracked file at HEAD
+  leak-check --history         every commit on every ref, diffs and messages
+
+Three kinds of rule:
+  1. Built-in patterns: tokens/keys, AWS account IDs, private IPs, internal hostnames, MAC
+     addresses, email addresses outside the allowlist.
+  2. Every real value in vars/vars.yml (gitignored) that is not also in vars/vars.example.yml.
+  3. Personal denylist, one case-insensitive regex per line, kept outside the repository:
+     ${XDG_CONFIG_HOME:-~/.config}/leak-check/denylist and /home/$USER/.config/leak-check/denylist
+
+Known-public strings that trip a built-in pattern go in .leak-check-allow (one regex per line).
+Only for a reviewed false positive: git commit --no-verify skips the hooks.
+"""
+import argparse
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+REPO = Path(subprocess.run(['git', 'rev-parse', '--show-toplevel'], capture_output=True,
+                           text=True, check=True).stdout.strip())
+
+BUILTIN = {
+    'AWS access key': r'\b(?:AKIA|ASIA)[0-9A-Z]{16}\b',
+    'AWS account ID': r'\b\d{12}\.dkr\.ecr\.|arn:aws[\w-]*:[\w-]*:[\w-]*:\d{12}:',
+    'GitHub token': r'\b(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{40,})',
+    'API key': r'\bsk-(?:ant-)?[A-Za-z0-9_-]{20,}|\bAIza[0-9A-Za-z_-]{35}\b|\bglpat-[\w-]{20}',
+    'Slack token': r'\bxox[abposr]-[A-Za-z0-9-]{10,}',
+    'private key': r'-----BEGIN [A-Z ]*PRIVATE KEY-----',
+    'password hash': r'\$(?:2[aby]|5|6|y)\$[./A-Za-z0-9$]{20,}',
+    'U2F/FIDO key line': r'\b\w+:[A-Za-z0-9+/=]{40,},[A-Za-z0-9+/=]{40,},es256',
+    'private IPv4': r'\b(?:10\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])|192\.168)\.\d{1,3}\.\d{1,3}\b',
+    'internal hostname': r'\b[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.(?:lan|internal|corp|intranet|home\.arpa)\b',
+    'MAC address': r'\b(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}\b',
+    'email address': r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b',
+}
+
+
+def read_lines(path):
+    try:
+        return [line.strip() for line in path.read_text().splitlines()
+                if line.strip() and not line.lstrip().startswith('#')]
+    except FileNotFoundError:
+        return []
+
+
+def yaml_scalars(path):
+    """Scalar values of a YAML file (PyYAML when present, else a line-based fallback)."""
+    try:
+        text = path.read_text()
+    except FileNotFoundError:
+        return set()
+    try:
+        import yaml
+        values = set()
+
+        def walk(node):
+            if isinstance(node, dict):
+                for value in node.values():
+                    walk(value)
+            elif isinstance(node, list):
+                for value in node:
+                    walk(value)
+            elif isinstance(node, str):
+                values.add(node)
+        walk(yaml.safe_load(text))
+        return values
+    except ImportError:
+        values = set()
+        for line in text.splitlines():
+            if line.lstrip().startswith('#'):
+                continue
+            m = re.match(r'\s*(?:-\s+)?(?:[\w.-]+:\s+)?(.+?)\s*$', line)
+            if m and not m.group(1).endswith(':'):
+                values.add(m.group(1).split(' #')[0].strip().strip('"\''))
+        return values
+
+
+def personal_rules():
+    rules = {}
+    public = yaml_scalars(REPO / 'vars/vars.example.yml')
+    for value in yaml_scalars(REPO / 'vars/vars.yml') - public:
+        # Short, templated or non-identifying values (booleans, numbers, local paths) would
+        # only produce noise
+        if (len(value) < 6 or '{{' in value or value.lower() in {'true', 'false'} or
+                re.fullmatch(r'[\d.:-]+', value)):
+            continue
+        rules[f'vars.yml value {value[:4]}…'] = re.escape(value)
+    for i, pattern in enumerate(dict.fromkeys(
+            p for path in denylist_paths() for p in read_lines(path)), 1):
+        rules[f'personal denylist line {i}'] = f'(?i:{pattern})'
+    return rules
+
+
+def denylist_paths():
+    # Containers with their own $HOME (distrobox/apx --home) still see the real home, so read
+    # the denylist from both; LEAK_CHECK_DENYLIST adds another file
+    import getpass
+    paths = [Path(os.environ.get('XDG_CONFIG_HOME') or Path.home() / '.config'),
+             Path('/home') / getpass.getuser() / '.config']
+    paths = [p / 'leak-check/denylist' for p in paths]
+    if os.environ.get('LEAK_CHECK_DENYLIST'):
+        paths.append(Path(os.environ['LEAK_CHECK_DENYLIST']))
+    return list(dict.fromkeys(paths))
+
+
+def compile_rules():
+    allow = [re.compile(p) for p in read_lines(REPO / '.leak-check-allow')]
+    rules = [(name, re.compile(p), True) for name, p in BUILTIN.items()]
+    rules += [(name, re.compile(p), False) for name, p in personal_rules().items()]
+    return rules, allow
+
+
+def scan(chunks, rules, allow):
+    """chunks: (location, text) pairs. Built-in matches can be allowlisted, personal ones not."""
+    found = []
+    for location, text in chunks:
+        for name, rule, allowable in rules:
+            for m in rule.finditer(text):
+                if allowable and any(a.search(m.group(0)) for a in allow):
+                    continue
+                shown = m.group(0) if allowable else m.group(0)[:3] + '…'
+                if name in ('AWS access key', 'GitHub token', 'API key', 'Slack token',
+                            'password hash', 'U2F/FIDO key line'):
+                    shown = m.group(0)[:6] + '…'
+                found.append(f'{location}: {name}: {shown}')
+    return found
+
+
+def git(*args):
+    return subprocess.run(['git', *args], cwd=REPO, capture_output=True, text=True,
+                          check=True).stdout
+
+
+def diff_chunks(patch, default_location):
+    """Added lines of a patch, labelled with commit and file."""
+    commit, path = default_location, '?'
+    for line in patch.splitlines():
+        if line.startswith('commit '):
+            commit = line.split()[1][:10]
+        elif line.startswith('+++ '):
+            path = line[6:] if line.startswith('+++ b/') else line[4:]
+        elif line.startswith('+') and not line.startswith('+++'):
+            yield f'{commit} {path}', line[1:]
+        elif line.startswith('    ') and commit != default_location:
+            yield f'{commit} (message)', line  # indented commit message body in git log
+    # file names themselves can leak (e.g. a certificate named after a host)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument('--staged', action='store_true')
+    mode.add_argument('--message', metavar='FILE')
+    mode.add_argument('--range', metavar='A..B')
+    mode.add_argument('--tree', action='store_true')
+    mode.add_argument('--history', action='store_true')
+    args = parser.parse_args()
+    rules, allow = compile_rules()
+
+    if args.staged:
+        chunks = list(diff_chunks(git('diff', '--cached', '-U0', '--no-color', '--no-ext-diff'),
+                                  'staged'))
+        chunks += [('staged (file name)', n) for n in
+                   git('diff', '--cached', '--name-only', '--diff-filter=AR').splitlines()]
+    elif args.message:
+        text = '\n'.join(l for l in Path(args.message).read_text().splitlines()
+                         if not l.startswith('#'))
+        chunks = [('commit message', text)]
+    elif args.range or args.history:
+        refs = ['--all'] if args.history else [args.range]
+        chunks = list(diff_chunks(git('log', '-p', '--no-color', '--no-ext-diff', '-U0',
+                                      '--format=commit %H%n%n%w(0,4,4)%B', *refs), 'log'))
+        chunks += [('file name', n) for n in
+                   git('log', '--name-only', '--format=', *refs).splitlines() if n]
+    else:
+        chunks = []
+        for name in git('ls-files', '-z').split('\0'):
+            if not name:
+                continue
+            chunks.append((f'{name} (file name)', name))
+            try:
+                chunks.append((name, (REPO / name).read_text(errors='ignore')))
+            except (IsADirectoryError, FileNotFoundError):
+                pass
+
+    found = sorted(set(scan(chunks, rules, allow)))
+    if found:
+        print('leak-check: possible secret or personal information:', file=sys.stderr)
+        for item in found:
+            print(f'  {item}', file=sys.stderr)
+        print('Move real values to vars/vars.yml (gitignored) and use placeholders. A reviewed '
+              'false positive from a built-in pattern can go in .leak-check-allow.',
+              file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

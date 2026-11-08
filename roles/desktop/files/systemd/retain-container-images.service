@@ -1,5 +1,5 @@
 [Unit]
-Description=Retain recent allowlisted container images and remove older releases
+Description=Retain recent release container images and remove older releases
 
 [Service]
 Type=oneshot

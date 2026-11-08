@@ -1,0 +1,21 @@
+name: leak-check
+# Backstop for the local git hooks: built-in secret/personal-data patterns over every tracked
+# file and the full history (the personal denylist and vars.yml exist only on the workstation)
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  leak-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Tracked files
+        run: scripts/leak-check --tree
+      - name: Full history
+        run: scripts/leak-check --history
+      - name: Unit tests
+        run: python3 -m unittest discover -s tests

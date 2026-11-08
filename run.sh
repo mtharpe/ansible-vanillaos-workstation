@@ -12,6 +12,8 @@ set -euo pipefail
 UV_VERSION=0.13.1
 PYTHON_VERSION=3.13
 repo=$(cd "$(dirname "$0")" && pwd)
+# Turn on the leak-check git hooks (.githooks) in this clone; no-op where git is missing
+git -C "$repo" config core.hooksPath .githooks 2>/dev/null || true
 cache=$repo/.cache
 venv=$repo/.venv
 export ANSIBLE_CONFIG=$repo/ansible.cfg

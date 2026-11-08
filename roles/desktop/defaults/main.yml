@@ -80,6 +80,11 @@ desktop_dconf:
   /org/gnome/shell/extensions/twingate-panel/privileged-helper: "'/usr/local/libexec/twingate-switch'"
 
 desktop_wp_state: "{{ local_home }}/.local/state/wireplumber"
+# Container image retention (retain-container-images): registry repositories whose numbered
+# releases (tag_prefix + number) are pruned to the five newest. Set in vars/vars.yml
+image_retention_repositories: []
+image_retention_tag_prefix: v
+
 # Bluetooth headsets' codec profile and latency offset (set in vars/vars.yml)
 bt_audio_devices: []
 
